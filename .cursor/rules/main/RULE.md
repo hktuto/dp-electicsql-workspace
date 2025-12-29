@@ -131,8 +131,17 @@ const props = defineProps<Props>()
   1. Extract route params
   2. Convert params to props
   3. Render the global component
-- Keep page files minimal (< 20 lines)
-= **NEVER** create additonal document, document should only have 3 sections: PLAN (phase development plan), PROGRESS (daily progress report), REQUIREMENT (requirement documentation), if any additional document needed, please create a new file follow current phase number + 0.1, for example, if current phase is 3.0, and you need to create a new document for the 3.1 phase, the file name should be `3.1_new-feature.md`
+- Keep page files minimal (< 100 lines)
+- **NEVER** create additional document, document should only have 3 sections: PLAN (phase development plan), PROGRESS (daily progress report), REQUIREMENT (requirement documentation), if any additional document needed, please create a new file follow current phase number + 0.1, for example, if current phase is 3.0, and you need to create a new document for the 3.1 phase, the file name should be `3.1_new-feature.md`. 
+- **ALWAYS** use standard Markdown for task list **NEVER** use emoji, and use the following format:
+  - [ ] Task 1
+  - [ ] Task 2
+  - [ ] Task 3
+  - [ ] Task 4
+  - [ ] Task 5
+  - [ ] Task 6
+  - [ ] Task 7
+  - [ ] Task 8
 
 ## Project Management Structure
 

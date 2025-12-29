@@ -5,60 +5,37 @@
 
 set -e
 
-echo "🗑️  Dropping all application tables in PostgreSQL..."
+echo "🗑️  Dropping all tables in PostgreSQL..."
 
-# Drop specific application tables (avoiding PostGIS system tables)
+# Drop all tables including migrations (using psql via docker)
 docker exec -i docpal-postgres psql -U docpal -d docpal << 'EOF'
-DROP TABLE IF EXISTS company_invites CASCADE;
-DROP TABLE IF EXISTS company_members CASCADE;
-DROP TABLE IF EXISTS companies CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS test_items CASCADE;
-DROP TABLE IF EXISTS _hub_migrations CASCADE;
-DROP PUBLICATION IF EXISTS electric_publication;
-DROP PUBLICATION IF EXISTS electric_publication_default;
+DO $$ 
+DECLARE
+    r RECORD;
+BEGIN
+    -- Disable triggers
+    SET session_replication_role = 'replica';
+    
+    -- Drop all tables in public schema
+    FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+        EXECUTE 'DROP TABLE IF EXISTS public.' || quote_ident(r.tablename) || ' CASCADE';
+        RAISE NOTICE 'Dropped table: %', r.tablename;
+    END LOOP;
+    
+    -- Re-enable triggers
+    SET session_replication_role = 'origin';
+END $$;
 EOF
 
-echo "✅ All application tables dropped"
+echo "✅ All tables dropped"
 
 echo ""
 echo "📝 Generating migrations..."
 pnpm db:generate
 
 echo ""
-echo "🚀 Applying migrations to PostgreSQL..."
-# Apply Drizzle-generated migrations
-for file in server/db/migrations/postgresql/*.sql; do
-  if [ -f "$file" ]; then
-    echo "  Applying $(basename $file)..."
-    docker exec -i docpal-postgres psql -U docpal -d docpal < "$file"
-  fi
-done
-
-# Apply custom migrations
-for file in server/db/custom-migrations/*.sql; do
-  if [ -f "$file" ]; then
-    echo "  Applying $(basename $file)..."
-    docker exec -i docpal-postgres psql -U docpal -d docpal < "$file"
-  fi
-done
-
-echo ""
-echo "📋 Marking migrations as applied in NuxtHub..."
-# Mark all migrations as applied so NuxtHub doesn't try to re-apply them
-for file in server/db/migrations/postgresql/*.sql; do
-  if [ -f "$file" ]; then
-    migration_name=$(basename "$file" .sql)
-    npx nuxt db mark-as-migrated "$migration_name" 2>/dev/null || true
-  fi
-done
-
-for file in server/db/custom-migrations/*.sql; do
-  if [ -f "$file" ]; then
-    migration_name=$(basename "$file" .sql)
-    npx nuxt db mark-as-migrated "$migration_name" 2>/dev/null || true
-  fi
-done
+echo "🚀 Running migrations..."
+pnpm db:migrate
 
 echo ""
 echo "🔄 Restarting Electric SQL container..."

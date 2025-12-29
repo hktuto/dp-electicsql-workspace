@@ -424,7 +424,7 @@ defineExpose({
 }
 
 .popover-content {
-  padding: var(--app-space-m);
+  padding: var(--app-space-xs);
   max-height: calc(100vh - 40px);
   overflow-y: auto;
 }

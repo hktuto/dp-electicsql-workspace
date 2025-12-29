@@ -61,10 +61,9 @@ export const workspaces = pgTable('workspaces', {
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/companies/:companyId/workspaces` | Create workspace |
-| PUT | `/api/companies/:companyId/workspaces/:id` | Update workspace |
-| DELETE | `/api/companies/:companyId/workspaces/:id` | Delete workspace |
-| PUT | `/api/companies/:companyId/workspaces/:id/menu` | Update menu structure |
+| POST | `/api/workspaces` | Create workspace |
+| PUT | `/api/workspaces/:id` | Update workspace (including menu) |
+| DELETE | `/api/workspaces/:id` | Delete workspace |
 
 ---
 
@@ -83,8 +82,8 @@ export const workspaces = pgTable('workspaces', {
 ## Completion Criteria
 
 - [x] Company admin can create workspaces
-- [🔄] Workspace has customizable menu (structure ready, awaiting menu component integration)
-- [🔄] Menu supports drag-and-drop reordering (awaiting menu component integration)
+- [ ] Workspace has customizable menu (structure ready, awaiting menu component integration)
+- [ ] Menu supports drag-and-drop reordering (awaiting menu component integration)
 - [x] Workspace data syncs to frontend
 - [x] Workspace list, detail, and settings pages created
 - [x] Full CRUD operations functional
@@ -116,9 +115,8 @@ export const workspaces = pgTable('workspaces', {
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | POST | `/api/workspaces` | Create workspace | Company Admin |
-| PUT | `/api/workspaces/:id` | Update workspace | Company Admin |
+| PUT | `/api/workspaces/:id` | Update workspace (including menu) | Company Admin |
 | DELETE | `/api/workspaces/:id` | Delete workspace | Company Admin |
-| PUT | `/api/workspaces/:id/menu` | Update menu structure | Company Member |
 
 ### Electric SQL Sync
 
@@ -154,16 +152,16 @@ Created all page wrappers and global components following the established patter
 - `app/components/global/workspaceSetting.vue` - Workspace settings with tabs
 
 ### Features Implemented
-- ✅ Workspace list page with grid layout
-- ✅ Create workspace dialog with form validation
-- ✅ Workspace detail page with header and sidebar structure
-- ✅ Workspace settings page with general, menu, and danger zone tabs
-- ✅ Delete workspace with confirmation dialog
-- ✅ Auto-slug generation from workspace name
-- ✅ Icon support via Iconify
-- ✅ Electric SQL sync integration (auto-refresh on data changes)
-- ✅ Company context integration
-- ✅ Permission checks (admin/owner required for management)
+- [x] Workspace list page with grid layout
+- [x] Create workspace dialog with form validation
+- [x] Workspace detail page with header and sidebar structure
+- [x] Workspace settings page with general, menu, and danger zone tabs
+- [x] Delete workspace with confirmation dialog
+- [x] Auto-slug generation from workspace name
+- [x] Icon support via Iconify
+- [x] Electric SQL sync integration (auto-refresh on data changes)
+- [x] Company context integration
+- [x] Permission checks (admin/owner required for management)
 
 ### Routes Available
 - `/workspaces` - List all workspaces
@@ -346,16 +344,16 @@ Added new section to `.cursor/rules/main/RULE.md`:
 - Row-level filtering working
 
 **Phase 3.0 Frontend**: 🟡 **In Progress**
-- ✅ Page wrappers created
-- ✅ Global components implemented
-- ✅ Workspace list with search
-- ✅ Workspace detail structure
-- ✅ Workspace settings
-- ✅ User profile menu
-- ✅ Icon picker system
-- ✅ Custom popover/dialog system
-- ⏳ Menu sidebar integration (pending)
-- ⏳ Drag-and-drop menu (pending)
+- [x] Page wrappers created
+- [x] Global components implemented
+- [x] Workspace list with search
+- [x] Workspace detail structure
+- [x] Workspace settings
+- [x] User profile menu
+- [x] Icon picker system
+- [x] Custom popover/dialog system
+- [ ] Menu sidebar integration (pending)
+- [ ] Drag-and-drop menu (pending)
 
 **Next Phase**: Phase 4.0 - Dynamic Tables
 

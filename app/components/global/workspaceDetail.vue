@@ -10,7 +10,7 @@ const { user } = useAuth()
 const router = useRouter()
 const workspaceSync = useWorkspaceSync()
 const companySync = useCompanySync()
-const { currentCompany } = useCompanyContext()
+const { currentCompany, isAdmin: isCompanyAdmin } = useCompanyContext()
 
 // Local state
 const workspace = ref<Workspace | null>(null)
@@ -20,7 +20,7 @@ const loading = ref(false)
 async function loadWorkspace() {
   if (!currentCompany.value?.id) return
   
-  loading.value = true
+  loading.value = workspace.value ? false : true; // only load on initial load
   try {
     workspace.value = await workspaceSync.findBySlug(currentCompany.value.id, props.slug)
     
@@ -43,9 +43,11 @@ onMounted(async () => {
 
   // Subscribe to workspace changes
   workspaceSync.onChange((changes) => {
+    console.log('workspace changes', changes)
     // Re-load if this workspace was updated
-    if (changes.update.some((w: any) => w.slug === props.slug)) {
+    if (changes.update.some((w: any) => w.new.slug === props.slug)) {
       loadWorkspace()
+      // Menu component will intelligently update via watch on initialMenu prop
     }
     // Redirect if this workspace was deleted
     if (changes.delete.some((w: any) => w.slug === props.slug)) {
@@ -116,23 +118,11 @@ function goToSettings() {
       <div class="workspace-main">
         <!-- Sidebar with menu -->
         <div class="workspace-sidebar">
-          <div class="sidebar-header">
-            <h3>Navigation</h3>
-          </div>
-          <div class="menu-container">
-            <!-- TODO: This will be replaced with your menu component -->
-            <div v-if="workspace.menu && workspace.menu.length > 0" class="menu-placeholder">
-              <div v-for="item in workspace.menu" :key="item.id" class="menu-item">
-                <Icon :name="item.type === 'folder' ? 'material-symbols:folder' : 'material-symbols:description'" />
-                <span>{{ item.label }}</span>
-              </div>
-            </div>
-            <el-empty 
-              v-else
-              description="No menu items yet"
-              :image-size="60"
-            />
-          </div>
+          <WorkspaceMenu
+            :workspace-id="workspace.id"
+            :initial-menu="workspace.menu || []"
+            :is-admin="isCompanyAdmin"
+          />
         </div>
 
         <!-- Content Area -->
@@ -241,47 +231,6 @@ function goToSettings() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.sidebar-header {
-  padding: var(--app-space-m);
-  border-bottom: 1px solid var(--app-border-color);
-
-  h3 {
-    margin: 0;
-    font-size: var(--app-font-size-m);
-    font-weight: 600;
-  }
-}
-
-.menu-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--app-space-s);
-}
-
-.menu-placeholder {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-xs);
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-s);
-  padding: var(--app-space-s) var(--app-space-m);
-  border-radius: var(--app-border-radius-s);
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-
-  &:hover {
-    background: var(--el-fill-color-light);
-  }
-
-  span {
-    font-size: var(--app-font-size-s);
-  }
 }
 
 .workspace-body {

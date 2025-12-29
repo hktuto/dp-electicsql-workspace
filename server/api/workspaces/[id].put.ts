@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { name, slug, description, icon } = body
+  const { name, slug, description, icon, menu } = body
 
   // Get workspace
   const [workspace] = await db
@@ -90,6 +90,7 @@ export default defineEventHandler(async (event) => {
       slug: slug || workspace.slug,
       description: description !== undefined ? description : workspace.description,
       icon: icon !== undefined ? icon : workspace.icon,
+      menu: menu !== undefined ? menu : workspace.menu,
       updatedAt: new Date(),
     })
     .where(eq(schema.workspaces.id, id))

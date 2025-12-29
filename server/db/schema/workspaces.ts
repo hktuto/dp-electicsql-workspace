@@ -1,20 +1,8 @@
 import { pgTable, uuid, text, jsonb, timestamp, unique } from 'drizzle-orm/pg-core'
 import { companies } from './companies'
 import { users } from './users'
+import type { MenuItem } from '#shared/types/db'
 
-export interface MenuItem {
-  id: string
-  label: string
-  slug: string
-  type: 'folder' | 'table' | 'view' | 'dashboard'
-  itemId?: string
-  description?: string
-  children?: MenuItem[]
-  order: number
-  viewId?: string
-  tableId?: string
-  tableSlug?: string
-}
 
 export const workspaces = pgTable('workspaces', {
   id: uuid('id').primaryKey(),
