@@ -63,9 +63,6 @@ export function useElectricSync() {
 
   // Initialize worker connection
   const connect = () => {
-    // Skip on server-side (SSR)
-    if (import.meta.server) return
-    
     if (worker) return
 
     if (typeof SharedWorker === 'undefined') {
@@ -189,12 +186,6 @@ export function useElectricSync() {
   // Send message to worker and wait for response
   const sendMessage = <T = any>(type: string, payload: Record<string, any> = {}): Promise<T> => {
     return new Promise((resolve, reject) => {
-      // Skip on server-side (SSR)
-      if (import.meta.server) {
-        reject(new Error('Electric sync only works on client side'))
-        return
-      }
-      
       // Auto-connect if not connected (lazy initialization)
       if (!worker) {
         connect()
