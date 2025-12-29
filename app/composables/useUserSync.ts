@@ -35,6 +35,10 @@ const useSyncedUsers = () => useState<User[]>('syncedUsers', () => [])
 
 export function useUserSync() {
   const electric = useElectricSync()
+  const config = useRuntimeConfig()
+  
+  // Use direct Electric URL for live sync (proxy breaks long-polling)
+  const electricUrl = config.public.electricUrl || 'http://localhost:30000'
   
   const state = useUserSyncState()
   const users = useSyncedUsers()
@@ -47,10 +51,12 @@ export function useUserSync() {
     state.value.error = null
 
     try {
+      // Use direct Electric URL for live sync
+      // TODO: For production, implement streaming proxy with auth
       await electric.syncShape(
         'users',
         'users',
-        '/api/electric/shape?table=users'
+        `${electricUrl}/v1/shape?table=users`
       )
       state.value.lastSyncAt = new Date()
     } catch (error) {
