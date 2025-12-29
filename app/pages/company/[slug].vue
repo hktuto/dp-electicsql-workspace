@@ -1,7 +1,5 @@
 <script setup lang="ts">
-definePageMeta({
-  middleware: ['auth'],
-})
+// Auth is handled by global middleware (auth.global.ts)
 
 const route = useRoute()
 const router = useRouter()
@@ -149,15 +147,22 @@ async function saveSettings() {
 
   saving.value = true
   try {
-    await $fetch(`/api/companies/${slug.value}`, {
+    const response = await $fetch<{ company: Company }>(`/api/companies/${slug.value}`, {
       method: 'PUT',
       body: {
         name: form.name,
         description: form.description || null,
       },
     })
+    
+    // Update local state immediately from API response (don't wait for Electric sync)
+    if (response.company) {
+      company.value = response.company
+      form.name = response.company.name
+      form.description = response.company.description || ''
+    }
+    
     ElMessage.success('Settings saved')
-    await loadCompany()
   } catch (error: any) {
     ElMessage.error(error.data?.message || 'Failed to save settings')
   } finally {
