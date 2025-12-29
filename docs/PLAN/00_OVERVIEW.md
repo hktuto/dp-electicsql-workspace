@@ -138,6 +138,33 @@ The Electric SQL worker broadcasts change events for all shape syncs:
 { type: 'DATA_CHANGE', shapeName, tableName, changes: { insert: [], update: [], delete: [] } }
 ```
 
+### Electric SQL Data Pattern
+
+**Query on demand, subscribe to changes** - Data lives in PGLite only, NOT in global refs.
+
+**Sync Composables:**
+- Only store sync STATE (isSyncing, error, lastSyncAt)
+- Provide query helpers (findById, getAll, etc.) that query PGLite
+- Provide change subscription (onChange callback)
+
+**Components:**
+- Query what they need from sync composable
+- Store in LOCAL ref for that component only
+- Subscribe to changes and re-query
+
+**Benefits:**
+- ✅ No memory duplication (scales to 100k+ rows)
+- ✅ Each component manages its own view
+- ✅ Pagination/filtering at query level
+
+**Change Event UX:**
+
+| Context | Behavior |
+|---------|----------|
+| List views | Auto-refresh silently |
+| Detail/Settings forms | Show notification if user has unsaved changes |
+| Grid views | Highlight inserted/updated/deleted rows |
+
 ---
 
 ## Current Status

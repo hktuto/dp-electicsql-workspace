@@ -85,10 +85,9 @@ async function loadCompany() {
   try {
     // Start sync if not already syncing
     await companySync.startSync()
-    await companySync.load()
     
     // Find company by slug in local data
-    const foundCompany = await companySync.findCompanyBySlug(slug.value)
+    const foundCompany = await companySync.findBySlug(slug.value)
     if (foundCompany) {
       company.value = foundCompany as Company
       form.name = foundCompany.name
@@ -122,7 +121,7 @@ async function loadInvites() {
     await inviteSync.startSync()
     
     // Get invites for this company from local data
-    const localInvites = await inviteSync.getInvitesForCompany(company.value.id)
+    const localInvites = await inviteSync.getForCompany(company.value.id)
     
     // Map to display format (local data uses snake_case)
     invites.value = localInvites.map((inv) => ({
@@ -147,22 +146,15 @@ async function saveSettings() {
 
   saving.value = true
   try {
-    const response = await $fetch<{ company: Company }>(`/api/companies/${slug.value}`, {
+    await $fetch(`/api/companies/${slug.value}`, {
       method: 'PUT',
       body: {
         name: form.name,
         description: form.description || null,
       },
     })
-    
-    // Update local state immediately from API response (don't wait for Electric sync)
-    if (response.company) {
-      company.value = response.company
-      form.name = response.company.name
-      form.description = response.company.description || ''
-    }
-    
     ElMessage.success('Settings saved')
+    await loadCompany()
   } catch (error: any) {
     ElMessage.error(error.data?.message || 'Failed to save settings')
   } finally {
@@ -234,6 +226,15 @@ onMounted(async () => {
   await loadCompany()
   await loadMembers()
   await loadInvites()
+
+  // Subscribe to changes - re-load when data changes
+  companySync.onCompanyChange(() => {
+    loadCompany()
+  })
+
+  inviteSync.onChange(() => {
+    loadInvites()
+  })
 })
 </script>
 

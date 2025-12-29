@@ -2,7 +2,11 @@
  * User Sync Composable
  * 
  * Syncs the users table from PostgreSQL to PGLite via Electric SQL.
- * Uses the proxy endpoint for authenticated access.
+ * 
+ * Pattern: Query on demand, subscribe to changes
+ * - NO global data refs (data lives in PGLite only)
+ * - Components query what they need
+ * - Components subscribe to change events to re-query
  */
 
 interface User {
@@ -18,32 +22,26 @@ interface User {
 }
 
 interface UserSyncState {
-  isLoading: boolean
   isSyncing: boolean
   error: string | null
   lastSyncAt: Date | null
 }
 
-// Global state using useState for SSR-safe reactivity
+// Only sync STATE, not data (data lives in PGLite)
 const useUserSyncState = () => useState<UserSyncState>('userSyncState', () => ({
-  isLoading: false,
   isSyncing: false,
   error: null,
   lastSyncAt: null,
 }))
-const useSyncedUsers = () => useState<User[]>('syncedUsers', () => [])
 
 export function useUserSync() {
   const electric = useElectricSync()
-  const config = useRuntimeConfig()
-  
-  // Use direct Electric URL for live sync (proxy breaks long-polling)
-  const electricUrl = config.public.electricUrl || 'http://localhost:30000'
-  
   const state = useUserSyncState()
-  const users = useSyncedUsers()
 
-  // Start syncing users table
+  // ============================================
+  // Sync Control
+  // ============================================
+
   const startSync = async () => {
     if (state.value.isSyncing) return
 
@@ -51,12 +49,10 @@ export function useUserSync() {
     state.value.error = null
 
     try {
-      // Use direct Electric URL for live sync
-      // TODO: For production, implement streaming proxy with auth
       await electric.syncShape(
         'users',
         'users',
-        `${electricUrl}/v1/shape?table=users`
+        '/api/electric/shape?table=users'
       )
       state.value.lastSyncAt = new Date()
     } catch (error) {
@@ -65,7 +61,6 @@ export function useUserSync() {
     }
   }
 
-  // Stop syncing
   const stopSync = async () => {
     try {
       await electric.stopShape('users')
@@ -75,26 +70,18 @@ export function useUserSync() {
     }
   }
 
-  // Load users from PGLite
-  const load = async () => {
-    state.value.isLoading = true
-    state.value.error = null
+  // ============================================
+  // Query Helpers (always fresh from PGLite)
+  // ============================================
 
+  const getAll = async (): Promise<User[]> => {
     try {
-      const result = await electric.query<User>(
-        'SELECT id, email, name, avatar, is_super_admin, email_verified_at, last_login_at, created_at, updated_at FROM users'
-      )
-      users.value = result
-    } catch (error) {
-      // Table might not exist yet
-      users.value = []
-      console.warn('[useUserSync] Failed to load users:', error)
-    } finally {
-      state.value.isLoading = false
+      return await electric.query<User>('SELECT * FROM users ORDER BY name')
+    } catch {
+      return []
     }
   }
 
-  // Find user by ID
   const findById = async (id: string): Promise<User | null> => {
     try {
       const result = await electric.query<User>(
@@ -107,7 +94,6 @@ export function useUserSync() {
     }
   }
 
-  // Find user by email
   const findByEmail = async (email: string): Promise<User | null> => {
     try {
       const result = await electric.query<User>(
@@ -120,33 +106,30 @@ export function useUserSync() {
     }
   }
 
-  // Listen for changes
-  const unsubscribe = electric.onDataChange('users', (changes) => {
-    console.log('[useUserSync] Changes detected:', {
-      insert: changes.insert.length,
-      update: changes.update.length,
-      delete: changes.delete.length,
-    })
-    // Reload data on any change
-    load()
-  })
+  // ============================================
+  // Change Subscriptions
+  // ============================================
 
-  // Cleanup on unmount
-  onUnmounted(() => {
-    unsubscribe()
-  })
+  type ChangeCallback = (changes: { insert: any[]; update: any[]; delete: any[] }) => void
+
+  const onChange = (callback: ChangeCallback) => {
+    return electric.onDataChange('users', callback)
+  }
 
   return {
-    // State
+    // State (sync status only)
     state: readonly(state),
-    users: readonly(users),
-    
-    // Methods
+
+    // Sync control
     startSync,
     stopSync,
-    load,
+
+    // Queries
+    getAll,
     findById,
     findByEmail,
+
+    // Change subscriptions
+    onChange,
   }
 }
-

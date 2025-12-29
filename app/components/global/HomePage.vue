@@ -1,18 +1,44 @@
 <script setup lang="ts">
 const { user, isAuthenticated, isInitialized, isLoading, logout } = useAuth()
 const router = useRouter()
-
-// Use synced company data from PGLite (synced via Electric SQL)
 const companySync = useCompanySync()
-const { companies, state: companySyncState } = companySync
 
-// Start sync when authenticated
+// Local state for this component only
+interface Company {
+  id: string
+  name: string
+  slug: string
+  logo: string | null
+  description: string | null
+}
+const companies = ref<Company[]>([])
+const loadingCompanies = ref(false)
+
+// Load companies from PGLite
+async function loadCompanies() {
+  if (!user.value) return
+  loadingCompanies.value = true
+  try {
+    companies.value = await companySync.getCompaniesForUser(user.value.id)
+  } finally {
+    loadingCompanies.value = false
+  }
+}
+
+// Start sync and load when authenticated
 watch(isAuthenticated, async (value) => {
   if (value) {
     await companySync.startSync()
-    await companySync.load()
+    await loadCompanies()
   }
 }, { immediate: true })
+
+// Subscribe to company changes - re-load when data changes
+onMounted(() => {
+  companySync.onCompanyChange(() => {
+    loadCompanies()
+  })
+})
 
 async function handleLogout() {
   await logout()
@@ -50,7 +76,7 @@ function goToCompany(slug: string) {
         <div class="companies-section">
           <h3>Your Companies</h3>
           
-          <div v-if="companySyncState.isLoading" class="loading">
+          <div v-if="loadingCompanies" class="loading">
             <el-icon class="is-loading"><Loading /></el-icon>
             <span>Loading companies...</span>
           </div>

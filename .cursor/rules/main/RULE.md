@@ -91,6 +91,67 @@ This pattern ensures:
 - State is shared across all components
 - Proper reactivity across the app
 
+### Electric SQL Sync Pattern
+Data synced via Electric SQL lives in **PGLite only**. Do NOT duplicate data in global refs.
+
+**Pattern: Query on demand, subscribe to changes**
+
+```typescript
+// ❌ Wrong - duplicates data in memory
+export function useCompanySync() {
+  const companies = useState<Company[]>('companies', () => [])  // BAD!
+  // ...
+}
+
+// ✅ Correct - query helpers, no data storage
+export function useCompanySync() {
+  const electric = useElectricSync()
+  
+  // Only sync STATE (isSyncing, error, etc.)
+  const state = useCompanySyncState()
+
+  // Query helpers - always fresh from PGLite
+  const findById = (id: string) => electric.query('SELECT * FROM companies WHERE id = $1', [id])
+  const getAll = () => electric.query('SELECT * FROM companies')
+
+  // Subscribe to changes
+  const onChange = (callback: ChangeCallback) => electric.onDataChange('companies', callback)
+
+  return { state, startSync, findById, getAll, onChange }
+}
+```
+
+**Component Usage:**
+```typescript
+const companySync = useCompanySync()
+
+// Local ref for THIS component only
+const companies = ref<Company[]>([])
+
+onMounted(async () => {
+  await companySync.startSync()
+  companies.value = await companySync.getAll()
+})
+
+// Re-query when data changes
+companySync.onChange(() => {
+  companies.value = companySync.getAll()
+})
+```
+
+**Benefits:**
+- ✅ No memory duplication (data lives in PGLite only)
+- ✅ Scales to 100k+ rows
+- ✅ Each component manages its own view
+- ✅ Pagination/filtering at query level
+
+**Change Event Behaviors:**
+| Context | Behavior |
+|---------|----------|
+| List views | Auto-refresh silently |
+| Detail/Settings forms | Show notification if user has unsaved changes |
+| Grid views | Highlight inserted/updated rows |
+
 ## Key Features to Remember
 - Companies, workspaces, dynamic tables, views (Table, Kanban, Gantt, Calendar, Gallery, Tree, Map), dashboards
 - Magic link invitations for users

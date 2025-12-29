@@ -2,7 +2,11 @@
  * Company Sync Composable
  * 
  * Syncs the companies and company_members tables from PostgreSQL to PGLite via Electric SQL.
- * Uses the proxy endpoint for authenticated access.
+ * 
+ * Pattern: Query on demand, subscribe to changes
+ * - NO global data refs (data lives in PGLite only)
+ * - Components query what they need
+ * - Components subscribe to change events to re-query
  */
 
 interface Company {
@@ -11,7 +15,7 @@ interface Company {
   slug: string
   logo: string | null
   description: string | null
-  company_users: number
+  company_users: string[]
   created_by: string
   created_at: string
   updated_at: string
@@ -27,34 +31,26 @@ interface CompanyMember {
 }
 
 interface CompanySyncState {
-  isLoading: boolean
   isSyncing: boolean
   error: string | null
   lastSyncAt: Date | null
 }
 
-// Global state using useState for SSR-safe reactivity
+// Only sync STATE, not data (data lives in PGLite)
 const useCompanySyncState = () => useState<CompanySyncState>('companySyncState', () => ({
-  isLoading: false,
   isSyncing: false,
   error: null,
   lastSyncAt: null,
 }))
-const useSyncedCompanies = () => useState<Company[]>('syncedCompanies', () => [])
-const useSyncedCompanyMembers = () => useState<CompanyMember[]>('syncedCompanyMembers', () => [])
 
 export function useCompanySync() {
   const electric = useElectricSync()
-  const config = useRuntimeConfig()
-  
-  // Use direct Electric URL for live sync (proxy breaks long-polling)
-  const electricUrl = config.public.electricUrl || 'http://localhost:30000'
-  
   const state = useCompanySyncState()
-  const companies = useSyncedCompanies()
-  const companyMembers = useSyncedCompanyMembers()
 
-  // Start syncing both tables
+  // ============================================
+  // Sync Control
+  // ============================================
+
   const startSync = async () => {
     if (state.value.isSyncing) return
 
@@ -62,19 +58,18 @@ export function useCompanySync() {
     state.value.error = null
 
     try {
-      // Sync companies - use direct Electric URL for live sync
-      // TODO: For production, implement streaming proxy with auth
+      // Sync companies
       await electric.syncShape(
         'companies',
         'companies',
-        `${electricUrl}/v1/shape?table=companies`
+        '/api/electric/shape?table=companies'
       )
       
       // Sync company_members
       await electric.syncShape(
         'company_members',
         'company_members',
-        `${electricUrl}/v1/shape?table=company_members`
+        '/api/electric/shape?table=company_members'
       )
       
       state.value.lastSyncAt = new Date()
@@ -84,7 +79,6 @@ export function useCompanySync() {
     }
   }
 
-  // Stop syncing
   const stopSync = async () => {
     try {
       await electric.stopShape('companies')
@@ -95,46 +89,19 @@ export function useCompanySync() {
     }
   }
 
-  // Load companies from PGLite
-  const loadCompanies = async () => {
+  // ============================================
+  // Query Helpers (always fresh from PGLite)
+  // ============================================
+
+  const getAll = async (): Promise<Company[]> => {
     try {
-      const result = await electric.query<Company>(
-        'SELECT id, name, slug, logo, description, company_users, created_by, created_at, updated_at FROM companies'
-      )
-      companies.value = result
-    } catch (error) {
-      companies.value = []
-      console.warn('[useCompanySync] Failed to load companies:', error)
+      return await electric.query<Company>('SELECT * FROM companies ORDER BY name')
+    } catch {
+      return []
     }
   }
 
-  // Load company members from PGLite
-  const loadMembers = async () => {
-    try {
-      const result = await electric.query<CompanyMember>(
-        'SELECT id, company_id, user_id, role, created_at, updated_at FROM company_members'
-      )
-      companyMembers.value = result
-    } catch (error) {
-      companyMembers.value = []
-      console.warn('[useCompanySync] Failed to load company members:', error)
-    }
-  }
-
-  // Load all data
-  const load = async () => {
-    state.value.isLoading = true
-    state.value.error = null
-
-    try {
-      await Promise.all([loadCompanies(), loadMembers()])
-    } finally {
-      state.value.isLoading = false
-    }
-  }
-
-  // Find company by ID
-  const findCompanyById = async (id: string): Promise<Company | null> => {
+  const findById = async (id: string): Promise<Company | null> => {
     try {
       const result = await electric.query<Company>(
         'SELECT * FROM companies WHERE id = $1',
@@ -146,8 +113,7 @@ export function useCompanySync() {
     }
   }
 
-  // Find company by slug
-  const findCompanyBySlug = async (slug: string): Promise<Company | null> => {
+  const findBySlug = async (slug: string): Promise<Company | null> => {
     try {
       const result = await electric.query<Company>(
         'SELECT * FROM companies WHERE slug = $1',
@@ -159,7 +125,18 @@ export function useCompanySync() {
     }
   }
 
-  // Get members for a company
+  // ============================================
+  // Member Query Helpers
+  // ============================================
+
+  const getAllMembers = async (): Promise<CompanyMember[]> => {
+    try {
+      return await electric.query<CompanyMember>('SELECT * FROM company_members')
+    } catch {
+      return []
+    }
+  }
+
   const getMembersForCompany = async (companyId: string): Promise<CompanyMember[]> => {
     try {
       return await electric.query<CompanyMember>(
@@ -171,13 +148,13 @@ export function useCompanySync() {
     }
   }
 
-  // Get companies for a user
   const getCompaniesForUser = async (userId: string): Promise<Company[]> => {
     try {
       return await electric.query<Company>(
         `SELECT c.* FROM companies c 
          INNER JOIN company_members cm ON c.id = cm.company_id 
-         WHERE cm.user_id = $1`,
+         WHERE cm.user_id = $1
+         ORDER BY c.name`,
         [userId]
       )
     } catch {
@@ -185,7 +162,6 @@ export function useCompanySync() {
     }
   }
 
-  // Get user's role in a company
   const getUserRole = async (companyId: string, userId: string): Promise<string | null> => {
     try {
       const result = await electric.query<CompanyMember>(
@@ -198,46 +174,41 @@ export function useCompanySync() {
     }
   }
 
-  // Listen for changes
-  const unsubscribeCompanies = electric.onDataChange('companies', (changes) => {
-    console.log('[useCompanySync] Companies changes:', {
-      insert: changes.insert.length,
-      update: changes.update.length,
-      delete: changes.delete.length,
-    })
-    loadCompanies()
-  })
+  // ============================================
+  // Change Subscriptions
+  // ============================================
 
-  const unsubscribeMembers = electric.onDataChange('company_members', (changes) => {
-    console.log('[useCompanySync] Members changes:', {
-      insert: changes.insert.length,
-      update: changes.update.length,
-      delete: changes.delete.length,
-    })
-    loadMembers()
-  })
+  type ChangeCallback = (changes: { insert: any[]; update: any[]; delete: any[] }) => void
 
-  // Cleanup on unmount
-  onUnmounted(() => {
-    unsubscribeCompanies()
-    unsubscribeMembers()
-  })
+  const onCompanyChange = (callback: ChangeCallback) => {
+    return electric.onDataChange('companies', callback)
+  }
+
+  const onMemberChange = (callback: ChangeCallback) => {
+    return electric.onDataChange('company_members', callback)
+  }
 
   return {
-    // State
+    // State (sync status only)
     state: readonly(state),
-    companies: readonly(companies),
-    companyMembers: readonly(companyMembers),
-    
-    // Methods
+
+    // Sync control
     startSync,
     stopSync,
-    load,
-    findCompanyById,
-    findCompanyBySlug,
+
+    // Company queries
+    getAll,
+    findById,
+    findBySlug,
+
+    // Member queries
+    getAllMembers,
     getMembersForCompany,
     getCompaniesForUser,
     getUserRole,
+
+    // Change subscriptions
+    onCompanyChange,
+    onMemberChange,
   }
 }
-

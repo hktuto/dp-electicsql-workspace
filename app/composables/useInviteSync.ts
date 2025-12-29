@@ -3,6 +3,11 @@
  * 
  * Syncs the company_invites table from PostgreSQL to PGLite via Electric SQL.
  * Only syncs invites for companies where the user is admin/owner.
+ * 
+ * Pattern: Query on demand, subscribe to changes
+ * - NO global data refs (data lives in PGLite only)
+ * - Components query what they need
+ * - Components subscribe to change events to re-query
  */
 
 interface CompanyInvite {
@@ -18,32 +23,26 @@ interface CompanyInvite {
 }
 
 interface InviteSyncState {
-  isLoading: boolean
   isSyncing: boolean
   error: string | null
   lastSyncAt: Date | null
 }
 
-// Global state using useState for SSR-safe reactivity
+// Only sync STATE, not data (data lives in PGLite)
 const useInviteSyncState = () => useState<InviteSyncState>('inviteSyncState', () => ({
-  isLoading: false,
   isSyncing: false,
   error: null,
   lastSyncAt: null,
 }))
-const useSyncedInvites = () => useState<CompanyInvite[]>('syncedInvites', () => [])
 
 export function useInviteSync() {
   const electric = useElectricSync()
-  const config = useRuntimeConfig()
-  
-  // Use direct Electric URL for live sync (proxy breaks long-polling)
-  const electricUrl = config.public.electricUrl || 'http://localhost:30000'
-  
   const state = useInviteSyncState()
-  const invites = useSyncedInvites()
 
-  // Start syncing invites table
+  // ============================================
+  // Sync Control
+  // ============================================
+
   const startSync = async () => {
     if (state.value.isSyncing) return
 
@@ -51,12 +50,10 @@ export function useInviteSync() {
     state.value.error = null
 
     try {
-      // Use direct Electric URL for live sync
-      // TODO: For production, implement streaming proxy with auth
       await electric.syncShape(
         'company_invites',
         'company_invites',
-        `${electricUrl}/v1/shape?table=company_invites`
+        '/api/electric/shape?table=company_invites'
       )
       state.value.lastSyncAt = new Date()
     } catch (error) {
@@ -65,7 +62,6 @@ export function useInviteSync() {
     }
   }
 
-  // Stop syncing
   const stopSync = async () => {
     try {
       await electric.stopShape('company_invites')
@@ -75,26 +71,21 @@ export function useInviteSync() {
     }
   }
 
-  // Load invites from PGLite
-  const load = async () => {
-    state.value.isLoading = true
-    state.value.error = null
+  // ============================================
+  // Query Helpers (always fresh from PGLite)
+  // ============================================
 
+  const getAll = async (): Promise<CompanyInvite[]> => {
     try {
-      const result = await electric.query<CompanyInvite>(
+      return await electric.query<CompanyInvite>(
         'SELECT * FROM company_invites WHERE accepted_at IS NULL ORDER BY created_at DESC'
       )
-      invites.value = result
-    } catch (error) {
-      invites.value = []
-      console.warn('[useInviteSync] Failed to load invites:', error)
-    } finally {
-      state.value.isLoading = false
+    } catch {
+      return []
     }
   }
 
-  // Get pending invites for a company
-  const getInvitesForCompany = async (companyId: string): Promise<CompanyInvite[]> => {
+  const getForCompany = async (companyId: string): Promise<CompanyInvite[]> => {
     try {
       return await electric.query<CompanyInvite>(
         'SELECT * FROM company_invites WHERE company_id = $1 AND accepted_at IS NULL ORDER BY created_at DESC',
@@ -105,7 +96,6 @@ export function useInviteSync() {
     }
   }
 
-  // Find invite by ID
   const findById = async (id: string): Promise<CompanyInvite | null> => {
     try {
       const result = await electric.query<CompanyInvite>(
@@ -118,32 +108,30 @@ export function useInviteSync() {
     }
   }
 
-  // Listen for changes
-  const unsubscribe = electric.onDataChange('company_invites', (changes) => {
-    console.log('[useInviteSync] Changes detected:', {
-      insert: changes.insert.length,
-      update: changes.update.length,
-      delete: changes.delete.length,
-    })
-    load()
-  })
+  // ============================================
+  // Change Subscriptions
+  // ============================================
 
-  // Cleanup on unmount
-  onUnmounted(() => {
-    unsubscribe()
-  })
+  type ChangeCallback = (changes: { insert: any[]; update: any[]; delete: any[] }) => void
+
+  const onChange = (callback: ChangeCallback) => {
+    return electric.onDataChange('company_invites', callback)
+  }
 
   return {
-    // State
+    // State (sync status only)
     state: readonly(state),
-    invites: readonly(invites),
-    
-    // Methods
+
+    // Sync control
     startSync,
     stopSync,
-    load,
-    getInvitesForCompany,
+
+    // Queries
+    getAll,
+    getForCompany,
     findById,
+
+    // Change subscriptions
+    onChange,
   }
 }
-
