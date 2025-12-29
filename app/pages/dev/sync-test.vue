@@ -30,11 +30,10 @@ async function fetchSchemas() {
   }
 }
 
-// Start syncing users (via proxy)
+// Start syncing users (via authenticated proxy)
 async function syncUsers() {
   try {
     log('🔄 Starting users sync...')
-    // Use proxy endpoint instead of direct Electric URL
     await electric.syncShape(
       'users',
       'users',
@@ -46,7 +45,7 @@ async function syncUsers() {
   }
 }
 
-// Start syncing companies (via proxy)
+// Start syncing companies (via authenticated proxy)
 async function syncCompanies() {
   try {
     log('🔄 Starting companies sync...')
@@ -61,7 +60,7 @@ async function syncCompanies() {
   }
 }
 
-// Start syncing company_members (via proxy)
+// Start syncing company_members (via authenticated proxy)
 async function syncCompanyMembers() {
   try {
     log('🔄 Starting company_members sync...')

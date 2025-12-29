@@ -167,60 +167,26 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Forward request to Electric
-    const response = await fetch(originUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    })
+    const response = await fetch(originUrl.toString())
 
-    // Check for errors from Electric
-    if (!response.ok) {
-      console.error('[Electric Proxy] Electric error:', response.status, response.statusText)
-      throw createError({
-        statusCode: response.status,
-        message: `Electric error: ${response.statusText}`,
-      })
-    }
-
-    // Get headers from Electric response
-    const headers: Record<string, string> = {}
-    
-    // Forward important Electric headers
-    const electricHeaders = [
-      'electric-handle',
-      'electric-offset', 
-      'electric-schema',
-      'electric-chunk-last-offset',
-      'electric-up-to-date',
-      'etag',
-      'cache-control',
-    ]
-    
-    for (const header of electricHeaders) {
-      const value = response.headers.get(header)
-      if (value) {
-        headers[header] = value
-      }
-    }
-
-    // Remove content-encoding/length as fetch decompresses
+    // Fetch decompresses the body but doesn't remove the
+    // content-encoding & content-length headers which would
+    // break decoding in the browser.
     // See: https://github.com/whatwg/fetch/issues/1729
+    const headers = new Headers(response.headers)
+    headers.delete('content-encoding')
+    headers.delete('content-length')
     
-    // Set content type
-    headers['content-type'] = response.headers.get('content-type') || 'application/json'
-
     // Add Vary header for cache isolation based on auth
     // This ensures different users don't get each other's cached data
-    headers['Vary'] = 'Cookie, Authorization'
+    headers.set('Vary', 'Authorization')
 
-    // Get response body
-    const body = await response.text()
-
-    // Set response headers
-    setHeaders(event, headers)
-
-    return body
+    // Stream the response body directly (important for live polling)
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    })
   } catch (error) {
     console.error('[Electric Proxy] Request failed:', error)
     

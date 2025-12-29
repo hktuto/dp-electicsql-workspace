@@ -49,6 +49,7 @@ export function useUserSync() {
     state.value.error = null
 
     try {
+      // Sync users (via authenticated proxy)
       await electric.syncShape(
         'users',
         'users',

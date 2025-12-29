@@ -58,14 +58,14 @@ export function useCompanySync() {
     state.value.error = null
 
     try {
-      // Sync companies
+      // Sync companies (via authenticated proxy)
       await electric.syncShape(
         'companies',
         'companies',
         '/api/electric/shape?table=companies'
       )
       
-      // Sync company_members
+      // Sync company_members (via authenticated proxy)
       await electric.syncShape(
         'company_members',
         'company_members',

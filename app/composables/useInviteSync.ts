@@ -50,6 +50,7 @@ export function useInviteSync() {
     state.value.error = null
 
     try {
+      // Sync company_invites (via authenticated proxy, admin-only filtering)
       await electric.syncShape(
         'company_invites',
         'company_invites',
