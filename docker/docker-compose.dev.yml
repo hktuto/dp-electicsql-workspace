@@ -1,0 +1,81 @@
+services:
+  postgres:
+    # PostgreSQL 16 (LTS) with PostGIS 3.4
+    # For PostgreSQL 17 (latest): postgis/postgis:17-3.4-alpine
+    image: postgis/postgis:16-3.4-alpine
+    container_name: docpal-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: docpal
+      POSTGRES_USER: docpal
+      POSTGRES_PASSWORD: docpal_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Auto-initialize Electric on first startup
+    command: 
+      # Enable logical replication from the start
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_replication_slots=10"
+      - "-c"
+      - "max_wal_senders=10"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docpal"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - docpal-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: docpal-minio
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - docpal-network
+
+  electric:
+    image: electricsql/electric:latest
+    container_name: docpal-electric
+    ports:
+      - "30000:3000"  # HTTP API (host:container)
+    environment:
+      DATABASE_URL: "postgresql://docpal:docpal_dev@postgres:5432/docpal?sslmode=disable"
+      ELECTRIC_WRITE_TO_PG_MODE: "direct_writes"
+      LOGICAL_PUBLISHER_HOST: postgres
+      LOGICAL_PUBLISHER_PORT: 5432
+      # Development mode - DO NOT USE IN PRODUCTION
+      ELECTRIC_INSECURE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - docpal-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  docpal-network:
+    driver: bridge
+
