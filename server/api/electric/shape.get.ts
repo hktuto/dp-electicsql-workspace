@@ -1,3 +1,6 @@
+import { eq } from 'drizzle-orm'
+import { db, schema } from 'hub:db'
+
 /**
  * Electric SQL Proxy Endpoint
  * 
@@ -18,6 +21,21 @@ const ELECTRIC_PROTOCOL_PARAMS = [
   'replica',
 ]
 
+// Tables that require company-based filtering
+const COMPANY_FILTERED_TABLES = ['companies', 'company_members', 'company_invites']
+
+/**
+ * Get company IDs for a user
+ */
+async function getUserCompanyIds(userId: string): Promise<string[]> {
+  const memberships = await db
+    .select({ companyId: schema.companyMembers.companyId })
+    .from(schema.companyMembers)
+    .where(eq(schema.companyMembers.userId, userId))
+  
+  return memberships.map((m) => m.companyId)
+}
+
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const query = getQuery(event)
@@ -36,7 +54,7 @@ export default defineEventHandler(async (event) => {
 
   // Define which tables are public vs require auth
   const publicTables: string[] = []
-  const authRequiredTables = ['users', 'companies', 'company_members']
+  const authRequiredTables = ['users', 'companies', 'company_members', 'company_invites']
 
   // Check authorization
   if (authRequiredTables.includes(table) && !user) {
@@ -44,6 +62,19 @@ export default defineEventHandler(async (event) => {
       statusCode: 401,
       message: 'Authentication required',
     })
+  }
+
+  // Get user's company IDs for filtering (cached for this request)
+  let userCompanyIds: string[] | null = null
+  if (user && !user.isSuperAdmin && COMPANY_FILTERED_TABLES.includes(table)) {
+    userCompanyIds = await getUserCompanyIds(user.id)
+    
+    // If user has no companies, return empty for company-filtered tables
+    if (userCompanyIds.length === 0) {
+      // Return empty Electric response format
+      setHeader(event, 'content-type', 'application/json')
+      return JSON.stringify([{ headers: { control: 'up-to-date' } }])
+    }
   }
 
   // Construct Electric URL
@@ -80,12 +111,27 @@ export default defineEventHandler(async (event) => {
   }
 
   // Add row-level filtering based on user context
-  // Example: Filter company_members by user's companies
-  // This is where you'd add your authorization logic
-  if (table === 'company_members' && user && !user.isSuperAdmin) {
-    // Non-admin users can only see their own memberships
-    // For now, we'll allow all - you can add filtering logic here
-    // originUrl.searchParams.set('where', `user_id = '${user.id}'`)
+  // Super admins see all data, regular users see only their companies' data
+  if (user && !user.isSuperAdmin && userCompanyIds && userCompanyIds.length > 0) {
+    const companyIdList = userCompanyIds.map((id) => `'${id}'`).join(',')
+    
+    switch (table) {
+      case 'companies':
+        // Users can only see companies they belong to
+        originUrl.searchParams.set('where', `id IN (${companyIdList})`)
+        break
+        
+      case 'company_members':
+        // Users can only see members of companies they belong to
+        originUrl.searchParams.set('where', `company_id IN (${companyIdList})`)
+        break
+        
+      case 'company_invites':
+        // Users can only see invites for companies they're admin of
+        // (handled by API endpoint, but filter here for safety)
+        originUrl.searchParams.set('where', `company_id IN (${companyIdList})`)
+        break
+    }
   }
 
   console.log('[Electric Proxy] Forwarding request:', originUrl.toString())

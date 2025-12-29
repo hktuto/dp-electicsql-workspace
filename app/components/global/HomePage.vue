@@ -2,10 +2,46 @@
 const { user, isAuthenticated, isInitialized, isLoading, logout } = useAuth()
 const router = useRouter()
 
+// Company data
+interface Company {
+  id: string
+  name: string
+  slug: string
+  logo: string | null
+  description: string | null
+  createdAt: string
+}
+
+const companies = ref<Company[]>([])
+const loadingCompanies = ref(false)
+
+async function loadCompanies() {
+  if (!isAuthenticated.value) return
+  
+  loadingCompanies.value = true
+  try {
+    const response = await $fetch<{ companies: Company[] }>('/api/companies')
+    companies.value = response.companies || []
+  } catch (error) {
+    console.error('Failed to load companies:', error)
+  } finally {
+    loadingCompanies.value = false
+  }
+}
+
 async function handleLogout() {
   await logout()
   router.push('/auth/login')
 }
+
+function goToCompany(slug: string) {
+  router.push(`/company/${slug}`)
+}
+
+// Load companies when authenticated
+watch(isAuthenticated, (value) => {
+  if (value) loadCompanies()
+}, { immediate: true })
 </script>
 
 <template>
@@ -30,10 +66,44 @@ async function handleLogout() {
           </el-tag>
         </div>
 
+        <!-- Company List -->
+        <div class="companies-section">
+          <h3>Your Companies</h3>
+          
+          <div v-if="loadingCompanies" class="loading">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <span>Loading companies...</span>
+          </div>
+
+          <div v-else-if="companies.length === 0" class="no-companies">
+            <p>You don't have any companies yet.</p>
+            <el-button v-if="user.isSuperAdmin" type="primary" @click="router.push('/company/new')">
+              Create Company
+            </el-button>
+          </div>
+
+          <div v-else class="company-grid">
+            <el-card 
+              v-for="company in companies" 
+              :key="company.id"
+              class="company-card"
+              shadow="hover"
+              @click="goToCompany(company.slug)"
+            >
+              <div class="company-logo">
+                <el-avatar :size="48" shape="square">
+                  {{ company.name.charAt(0).toUpperCase() }}
+                </el-avatar>
+              </div>
+              <div class="company-info">
+                <h4>{{ company.name }}</h4>
+                <p v-if="company.description">{{ company.description }}</p>
+              </div>
+            </el-card>
+          </div>
+        </div>
+
         <div class="actions">
-          <el-button type="primary" size="large">
-            Go to Dashboard
-          </el-button>
           <el-button size="large" @click="handleLogout">
             Logout
           </el-button>
@@ -104,5 +174,68 @@ async function handleLogout() {
   color: var(--app-text-color-secondary);
   margin-bottom: var(--app-space-m);
   font-size: var(--app-font-size-l);
+}
+
+.companies-section {
+  margin: var(--app-space-l) 0;
+  text-align: left;
+  max-width: 600px;
+  width: 100%;
+
+  h3 {
+    margin-bottom: var(--app-space-m);
+    font-size: var(--app-font-size-l);
+    text-align: center;
+  }
+}
+
+.no-companies {
+  text-align: center;
+  color: var(--app-text-color-secondary);
+  padding: var(--app-space-l);
+  
+  p {
+    margin-bottom: var(--app-space-m);
+  }
+}
+
+.company-grid {
+  display: grid;
+  gap: var(--app-space-m);
+}
+
+.company-card {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  :deep(.el-card__body) {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-m);
+  }
+}
+
+.company-info {
+  flex: 1;
+  min-width: 0;
+
+  h4 {
+    margin: 0 0 var(--app-space-xs);
+    font-size: var(--app-font-size-m);
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    font-size: var(--app-font-size-s);
+    color: var(--app-text-color-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 </style>

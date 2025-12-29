@@ -16,6 +16,7 @@ const SYNCED_TABLES = [
   'users',
   'companies',
   'company_members',
+  'company_invites',
 ]
 
 // Column type mapping from PostgreSQL to PGLite-compatible types

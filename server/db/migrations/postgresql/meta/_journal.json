@@ -8,6 +8,13 @@
       "when": 1766986992377,
       "tag": "0000_secret_smiling_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1766996492332,
+      "tag": "0001_complete_maximus",
+      "breakpoints": true
     }
   ]
 }
