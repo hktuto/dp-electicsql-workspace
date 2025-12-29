@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 import { db, schema } from 'hub:db'
 
 /**
@@ -24,14 +24,34 @@ const ELECTRIC_PROTOCOL_PARAMS = [
 // Tables that require company-based filtering
 const COMPANY_FILTERED_TABLES = ['companies', 'company_members', 'company_invites']
 
+// Admin roles that can see invites
+const ADMIN_ROLES = ['owner', 'admin']
+
 /**
- * Get company IDs for a user
+ * Get company IDs for a user (all memberships)
  */
 async function getUserCompanyIds(userId: string): Promise<string[]> {
   const memberships = await db
     .select({ companyId: schema.companyMembers.companyId })
     .from(schema.companyMembers)
     .where(eq(schema.companyMembers.userId, userId))
+  
+  return memberships.map((m) => m.companyId)
+}
+
+/**
+ * Get company IDs where user is admin/owner
+ */
+async function getUserAdminCompanyIds(userId: string): Promise<string[]> {
+  const memberships = await db
+    .select({ companyId: schema.companyMembers.companyId })
+    .from(schema.companyMembers)
+    .where(
+      and(
+        eq(schema.companyMembers.userId, userId),
+        inArray(schema.companyMembers.role, ADMIN_ROLES)
+      )
+    )
   
   return memberships.map((m) => m.companyId)
 }
@@ -127,9 +147,18 @@ export default defineEventHandler(async (event) => {
         break
         
       case 'company_invites':
-        // Users can only see invites for companies they're admin of
-        // (handled by API endpoint, but filter here for safety)
-        originUrl.searchParams.set('where', `company_id IN (${companyIdList})`)
+        // Users can only see invites for companies they're ADMIN of
+        // Get admin company IDs (owner/admin role only)
+        const adminCompanyIds = await getUserAdminCompanyIds(user.id)
+        
+        if (adminCompanyIds.length === 0) {
+          // User is not admin of any company, return empty
+          setHeader(event, 'content-type', 'application/json')
+          return JSON.stringify([{ headers: { control: 'up-to-date' } }])
+        }
+        
+        const adminCompanyIdList = adminCompanyIds.map((id) => `'${id}'`).join(',')
+        originUrl.searchParams.set('where', `company_id IN (${adminCompanyIdList})`)
         break
     }
   }

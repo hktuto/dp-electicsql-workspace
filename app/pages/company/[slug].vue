@@ -7,6 +7,7 @@ const route = useRoute()
 const router = useRouter()
 const { user } = useAuth()
 const companySync = useCompanySync()
+const inviteSync = useInviteSync()
 
 const slug = computed(() => route.params.slug as string)
 
@@ -115,11 +116,25 @@ async function loadMembers() {
   }
 }
 
+// Load invites from local PGLite (synced via Electric SQL, admin-only)
 async function loadInvites() {
-  if (!canManage.value) return
+  if (!canManage.value || !company.value) return
   try {
-    const response = await $fetch<{ invites: Invite[] }>(`/api/companies/${slug.value}/invites`)
-    invites.value = response.invites || []
+    // Start sync if not already syncing
+    await inviteSync.startSync()
+    
+    // Get invites for this company from local data
+    const localInvites = await inviteSync.getInvitesForCompany(company.value.id)
+    
+    // Map to display format (local data uses snake_case)
+    invites.value = localInvites.map((inv) => ({
+      id: inv.id,
+      email: inv.email,
+      role: inv.role,
+      expiresAt: inv.expires_at,
+      createdAt: inv.created_at,
+      invitedBy: { id: inv.invited_by, name: null, email: '' }, // User details need API
+    }))
   } catch (error) {
     console.error('Failed to load invites:', error)
   }
