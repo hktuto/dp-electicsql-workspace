@@ -63,10 +63,13 @@ export function useElectricSync() {
 
   // Initialize worker connection
   const connect = () => {
+    // Skip on server-side (SSR)
+    if (import.meta.server) return
+    
     if (worker) return
 
     if (typeof SharedWorker === 'undefined') {
-      console.warn('[useElectricSync] SharedWorker not supported, falling back to regular Worker')
+      console.warn('[useElectricSync] SharedWorker not supported')
       status.value.error = 'SharedWorker not supported'
       return
     }
@@ -186,6 +189,18 @@ export function useElectricSync() {
   // Send message to worker and wait for response
   const sendMessage = <T = any>(type: string, payload: Record<string, any> = {}): Promise<T> => {
     return new Promise((resolve, reject) => {
+      // Skip on server-side (SSR)
+      if (import.meta.server) {
+        reject(new Error('Electric sync only works on client side'))
+        return
+      }
+      
+      // Auto-connect if not connected (lazy initialization)
+      if (!worker) {
+        connect()
+      }
+      
+      // Still not connected after trying
       if (!worker) {
         reject(new Error('Worker not connected'))
         return
