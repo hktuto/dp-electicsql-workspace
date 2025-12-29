@@ -28,6 +28,62 @@ DocPal is a low-code platform built with Nuxt 4 + NuxtHub that allows users to c
   - Border radius: `var(--app-border-radius-s)`, `var(--app-border-radius-m)`, etc.
   - Shadows: `var(--app-shadow-s)`, `var(--app-shadow-m)`, `var(--app-shadow-l)`, etc.
 
+## Frontend Architecture
+
+### Page/Component Pattern
+
+**All pages are just wrappers** - They convert route params to props and render the actual component.
+
+**Pattern:**
+```
+/app/pages/[url].vue              <- Route wrapper (extracts params, passes as props)
+/app/components/global/[Name].vue <- Actual page component (receives props)
+```
+
+**Why:** This architecture supports dual navigation modes:
+1. **URL Navigation** - Standard page-based routing
+2. **Tab/Dock Mode** - Dynamic component rendering in Dockview panels
+
+By keeping actual logic in global components, the same component can be rendered in either mode.
+
+**Example:**
+
+```vue
+<!-- app/pages/company/[slug].vue - Route Wrapper -->
+<script setup lang="ts">
+const route = useRoute()
+const slug = route.params.slug as string
+</script>
+
+<template>
+  <CompanySetting :slug="slug" />
+</template>
+```
+
+```vue
+<!-- app/components/global/companySetting.vue - Actual Component -->
+<script setup lang="ts">
+interface Props {
+  slug: string
+}
+const props = defineProps<Props>()
+// ... all the component logic here
+</script>
+
+<template>
+  <!-- ... UI here -->
+</template>
+```
+
+**Rules:**
+- **ALWAYS** create the actual component in `/app/components/global/` (or layer-specific global)
+- **NEVER** put business logic in page files
+- Page files should ONLY:
+  1. Extract route params
+  2. Convert params to props
+  3. Render the global component
+- Keep page files minimal (< 20 lines)
+
 ## Project Management Structure
 
 ### Requirements Documentation

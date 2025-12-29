@@ -37,6 +37,9 @@ export function useAppRouter() {
   const router = useRouter()
   const route = useRoute()
 
+  const currentPath = computed(() => {
+    return route.path
+  })
   // Check if we're in dock mode (URL starts with /tab)
   const isDockMode = computed(() => {
     return route.path.startsWith('/tab')
@@ -213,6 +216,8 @@ export function useAppRouter() {
     )
   }
 
+  const push = navigate
+
   // Get default title from path
   const getDefaultTitle = (path: string): string => {
     const params = extractParams(path)
@@ -265,7 +270,10 @@ export function useAppRouter() {
     onDockNavigate,
     getComponentFromPath,
     extractParams,
+    push,
+    
     // Expose underlying router for advanced use
+    currentPath,
     router,
     route,
   }

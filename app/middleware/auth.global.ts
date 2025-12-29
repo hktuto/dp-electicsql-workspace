@@ -60,4 +60,20 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!isAuthenticated.value) {
     return navigateTo('/auth/login')
   }
+
+  // Initialize company context for authenticated users
+  if (isAuthenticated.value) {
+    const companyContext = useCompanyContext()
+    const companySync = useCompanySync()
+    
+    // Start company sync if not already started
+    if (!companySync.state.value.isSyncing) {
+      await companySync.startSync()
+    }
+    
+    // Initialize company context (restore from cookie or auto-select first company)
+    if (!companyContext.currentCompanyId.value) {
+      await companyContext.init()
+    }
+  }
 })

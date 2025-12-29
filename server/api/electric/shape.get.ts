@@ -22,7 +22,7 @@ const ELECTRIC_PROTOCOL_PARAMS = [
 ]
 
 // Tables that require company-based filtering
-const COMPANY_FILTERED_TABLES = ['companies', 'company_members', 'company_invites']
+const COMPANY_FILTERED_TABLES = ['companies', 'company_members', 'company_invites', 'workspaces']
 
 // Admin roles that can see invites
 const ADMIN_ROLES = ['owner', 'admin']
@@ -74,7 +74,7 @@ export default defineEventHandler(async (event) => {
 
   // Define which tables are public vs require auth
   const publicTables: string[] = []
-  const authRequiredTables = ['users', 'companies', 'company_members', 'company_invites']
+  const authRequiredTables = ['users', 'companies', 'company_members', 'company_invites', 'workspaces']
 
   // Check authorization
   if (authRequiredTables.includes(table) && !user) {
@@ -159,6 +159,11 @@ export default defineEventHandler(async (event) => {
         
         const adminCompanyIdList = adminCompanyIds.map((id) => `'${id}'`).join(',')
         originUrl.searchParams.set('where', `company_id IN (${adminCompanyIdList})`)
+        break
+        
+      case 'workspaces':
+        // Users can only see workspaces they have access to (via workspace_users array)
+        originUrl.searchParams.set('where', `'${user.id}' = ANY(workspace_users)`)
         break
     }
   }

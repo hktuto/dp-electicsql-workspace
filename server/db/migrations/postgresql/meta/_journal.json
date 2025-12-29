@@ -15,6 +15,13 @@
       "when": 1766996492332,
       "tag": "0001_complete_maximus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767011518775,
+      "tag": "0002_futuristic_clint_barton",
+      "breakpoints": true
     }
   ]
 }

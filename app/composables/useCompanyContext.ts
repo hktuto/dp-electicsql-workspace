@@ -52,7 +52,7 @@ export function useCompanyContext() {
     isLoading.value = true
     try {
       // Find company in synced data
-      const company = await companySync.findCompanyById(companyId)
+      const company = await companySync.findById(companyId)
       if (!company) {
         console.warn('[useCompanyContext] Company not found:', companyId)
         return false
@@ -90,7 +90,7 @@ export function useCompanyContext() {
 
     isLoading.value = true
     try {
-      const company = await companySync.findCompanyBySlug(slug)
+      const company = await companySync.findBySlug(slug)
       if (!company) {
         console.warn('[useCompanyContext] Company not found:', slug)
         return false

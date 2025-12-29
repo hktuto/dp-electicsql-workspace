@@ -2,6 +2,7 @@
 const { user, isAuthenticated, isInitialized, isLoading, logout } = useAuth()
 const router = useRouter()
 const companySync = useCompanySync()
+const companyContext = useCompanyContext()
 
 // Local state for this component only
 interface Company {
@@ -30,6 +31,9 @@ watch(isAuthenticated, async (value) => {
   if (value) {
     await companySync.startSync()
     await loadCompanies()
+    
+    // Initialize company context from cookie or auto-select first company
+    await companyContext.init()
   }
 }, { immediate: true })
 
@@ -42,15 +46,23 @@ onMounted(() => {
 
 async function handleLogout() {
   await logout()
+  companyContext.clearCompany() // Clear company context on logout
   router.push('/auth/login')
 }
 
-function goToCompany(slug: string) {
-  router.push(`/company/${slug}`)
+async function goToCompany(slug: string) {
+  // Set company context first, then navigate
+  const success = await companyContext.setCompanyBySlug(slug)
+  if (success) {
+    router.push(`/company/${slug}`)
+  } else {
+    ElMessage.error('Failed to access company')
+  }
 }
 </script>
 
 <template>
+  <WrapperMain>
   <div class="home-page">
     <div class="home-container">
       <h1>DocPal</h1>
@@ -124,6 +136,7 @@ function goToCompany(slug: string) {
       </template>
     </div>
   </div>
+</WrapperMain>
 </template>
 
 <style scoped lang="scss">
