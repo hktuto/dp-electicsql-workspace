@@ -24,17 +24,20 @@ interface UserSyncState {
   lastSyncAt: Date | null
 }
 
+// Global state using useState for SSR-safe reactivity
+const useUserSyncState = () => useState<UserSyncState>('userSyncState', () => ({
+  isLoading: false,
+  isSyncing: false,
+  error: null,
+  lastSyncAt: null,
+}))
+const useSyncedUsers = () => useState<User[]>('syncedUsers', () => [])
+
 export function useUserSync() {
   const electric = useElectricSync()
   
-  const state = ref<UserSyncState>({
-    isLoading: false,
-    isSyncing: false,
-    error: null,
-    lastSyncAt: null,
-  })
-
-  const users = ref<User[]>([])
+  const state = useUserSyncState()
+  const users = useSyncedUsers()
 
   // Start syncing users table
   const startSync = async () => {

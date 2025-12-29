@@ -33,18 +33,22 @@ interface CompanySyncState {
   lastSyncAt: Date | null
 }
 
+// Global state using useState for SSR-safe reactivity
+const useCompanySyncState = () => useState<CompanySyncState>('companySyncState', () => ({
+  isLoading: false,
+  isSyncing: false,
+  error: null,
+  lastSyncAt: null,
+}))
+const useSyncedCompanies = () => useState<Company[]>('syncedCompanies', () => [])
+const useSyncedCompanyMembers = () => useState<CompanyMember[]>('syncedCompanyMembers', () => [])
+
 export function useCompanySync() {
   const electric = useElectricSync()
   
-  const state = ref<CompanySyncState>({
-    isLoading: false,
-    isSyncing: false,
-    error: null,
-    lastSyncAt: null,
-  })
-
-  const companies = ref<Company[]>([])
-  const companyMembers = ref<CompanyMember[]>([])
+  const state = useCompanySyncState()
+  const companies = useSyncedCompanies()
+  const companyMembers = useSyncedCompanyMembers()
 
   // Start syncing both tables
   const startSync = async () => {

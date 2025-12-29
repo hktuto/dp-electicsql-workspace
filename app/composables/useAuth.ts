@@ -14,12 +14,18 @@ interface LoginCredentials {
   password: string
 }
 
-const user = ref<User | null>(null)
-const isLoading = ref(false)
-const isInitialized = ref(false)
+// Global state using useState for SSR-safe reactivity
+const useUser = () => useState<User | null>('authUser', () => null)
+const useAuthLoading = () => useState<boolean>('authLoading', () => false)
+const useAuthInitialized = () => useState<boolean>('authInitialized', () => false)
+
+// Track init promise at module level (not in state as it's not serializable)
 let initPromise: Promise<void> | null = null
 
 export function useAuth() {
+  const user = useUser()
+  const isLoading = useAuthLoading()
+  const isInitialized = useAuthInitialized()
   const isAuthenticated = computed(() => !!user.value)
 
   /**

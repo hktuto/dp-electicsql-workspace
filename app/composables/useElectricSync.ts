@@ -40,22 +40,24 @@ let worker: SharedWorker | null = null
 let messageId = 0
 const pendingRequests = new Map<number, PendingRequest>()
 
-// Global event emitters
+// Global event emitters (these are client-side only, no SSR needed)
 const changeListeners = new Map<string, Set<(changes: DataChange['changes']) => void>>()
 const schemaResetListeners = new Set<(event: SchemaResetEvent) => void>()
 
-// Reactive worker connected state
-const workerConnected = ref(false)
+// Global state using useState for SSR-safe reactivity
+const useWorkerConnected = () => useState<boolean>('electricWorkerConnected', () => false)
+const useElectricStatus = () => useState<ElectricStatus>('electricStatus', () => ({
+  isReady: false,
+  isInitializing: false,
+  error: null,
+  connectedTabs: 0,
+  activeShapes: [],
+  schemaVersion: null,
+}))
 
 export function useElectricSync() {
-  const status = ref<ElectricStatus>({
-    isReady: false,
-    isInitializing: false,
-    error: null,
-    connectedTabs: 0,
-    activeShapes: [],
-    schemaVersion: null,
-  })
+  const workerConnected = useWorkerConnected()
+  const status = useElectricStatus()
 
   const isConnected = computed(() => workerConnected.value && status.value.isReady)
 

@@ -70,6 +70,27 @@ DocPal is a low-code platform built with Nuxt 4 + NuxtHub that allows users to c
 - Use TypeScript for type safety
 - Follow Nuxt 4 conventions and best practices
 
+### Global State in Composables
+For composables that need **global/shared state** (e.g., auth, company context, sync state), use `useState` wrapped in a function:
+
+```typescript
+// ❌ Wrong - creates new state per component
+const user = ref<User | null>(null)
+
+// ✅ Correct - global state with SSR-safe reactivity
+const useUser = () => useState<User | null>('authUser', () => null)
+
+export function useAuth() {
+  const user = useUser()  // Call inside the composable
+  // ...
+}
+```
+
+This pattern ensures:
+- SSR-safe state hydration
+- State is shared across all components
+- Proper reactivity across the app
+
 ## Key Features to Remember
 - Companies, workspaces, dynamic tables, views (Table, Kanban, Gantt, Calendar, Gallery, Tree, Map), dashboards
 - Magic link invitations for users
