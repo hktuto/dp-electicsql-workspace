@@ -6,18 +6,19 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const { user } = useAuth()
+const companySync = useCompanySync()
 
 const slug = computed(() => route.params.slug as string)
 
-// Company data
+// Company type from sync
 interface Company {
   id: string
   name: string
   slug: string
   logo: string | null
   description: string | null
-  createdAt: string
-  updatedAt: string
+  created_at: string
+  updated_at: string
 }
 
 interface Member {
@@ -79,15 +80,23 @@ const isOwner = computed(() => {
   return membership?.role === 'owner'
 })
 
-// Load company data
+// Load company data from local PGLite (synced via Electric SQL)
 async function loadCompany() {
   loading.value = true
   try {
-    const response = await $fetch<{ company: Company }>(`/api/companies/${slug.value}`)
-    if (response.company) {
-      company.value = response.company
-      form.name = response.company.name
-      form.description = response.company.description || ''
+    // Start sync if not already syncing
+    await companySync.startSync()
+    await companySync.load()
+    
+    // Find company by slug in local data
+    const foundCompany = await companySync.findCompanyBySlug(slug.value)
+    if (foundCompany) {
+      company.value = foundCompany as Company
+      form.name = foundCompany.name
+      form.description = foundCompany.description || ''
+    } else {
+      ElMessage.error('Company not found')
+      router.push('/')
     }
   } catch (error) {
     ElMessage.error('Failed to load company')

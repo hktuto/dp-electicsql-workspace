@@ -2,32 +2,17 @@
 const { user, isAuthenticated, isInitialized, isLoading, logout } = useAuth()
 const router = useRouter()
 
-// Company data
-interface Company {
-  id: string
-  name: string
-  slug: string
-  logo: string | null
-  description: string | null
-  createdAt: string
-}
+// Use synced company data from PGLite (synced via Electric SQL)
+const companySync = useCompanySync()
+const { companies, state: companySyncState } = companySync
 
-const companies = ref<Company[]>([])
-const loadingCompanies = ref(false)
-
-async function loadCompanies() {
-  if (!isAuthenticated.value) return
-  
-  loadingCompanies.value = true
-  try {
-    const response = await $fetch<{ companies: Company[] }>('/api/companies')
-    companies.value = response.companies || []
-  } catch (error) {
-    console.error('Failed to load companies:', error)
-  } finally {
-    loadingCompanies.value = false
+// Start sync when authenticated
+watch(isAuthenticated, async (value) => {
+  if (value) {
+    await companySync.startSync()
+    await companySync.load()
   }
-}
+}, { immediate: true })
 
 async function handleLogout() {
   await logout()
@@ -37,11 +22,6 @@ async function handleLogout() {
 function goToCompany(slug: string) {
   router.push(`/company/${slug}`)
 }
-
-// Load companies when authenticated
-watch(isAuthenticated, (value) => {
-  if (value) loadCompanies()
-}, { immediate: true })
 </script>
 
 <template>
@@ -70,7 +50,7 @@ watch(isAuthenticated, (value) => {
         <div class="companies-section">
           <h3>Your Companies</h3>
           
-          <div v-if="loadingCompanies" class="loading">
+          <div v-if="companySyncState.isLoading" class="loading">
             <el-icon class="is-loading"><Loading /></el-icon>
             <span>Loading companies...</span>
           </div>
