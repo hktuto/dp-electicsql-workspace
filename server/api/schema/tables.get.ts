@@ -90,21 +90,26 @@ export default defineEventHandler(async (event) => {
       `)
 
       // Extract rows from results
-      const columns = columnsResult as unknown as Array<{
+      type ColumnRow = {
         column_name: string
         data_type: string
         udt_name: string
         is_nullable: string
         column_default: string | null
         character_maximum_length: number | null
-      }>
+      }
 
-      const constraints = constraintsResult as unknown as Array<{
+      type ConstraintRow = {
         constraint_type: string
         column_name: string
-      }>
+      }
 
-      const primaryKeys = new Set(constraints.map(c => c.column_name))
+      const columns = ((columnsResult as any).rows || columnsResult) as ColumnRow[]
+      const constraints = ((constraintsResult as any).rows || constraintsResult) as ConstraintRow[]
+
+      const primaryKeys = new Set(
+        Array.isArray(constraints) ? constraints.map((c: ConstraintRow) => c.column_name) : []
+      )
 
       // Build CREATE TABLE statement
       const columnDefs = columns.map(col => {

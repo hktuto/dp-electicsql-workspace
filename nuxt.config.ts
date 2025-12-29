@@ -6,7 +6,15 @@ export default defineNuxtConfig({
   modules: ['@element-plus/nuxt', '@nuxthub/core', '@nuxt/icon'],
   hub:{
     blob: false,
-    db: 'postgresql',
+    db: {
+      dialect: 'postgresql',
+      migrationsDirs: [
+        'server/db/custom-migrations/'
+      ],
+      connection: {
+        connectionString: process.env.DATABASE_URL
+      }
+    },
     dir: '.data'
   },
   css: ['@/assets/style/main.scss'],
@@ -15,6 +23,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Private server-side config (not exposed to client)
     electricUrl: process.env.ELECTRIC_URL || 'http://localhost:30000',
+    databaseUrl: process.env.DATABASE_URL || 'postgresql://docpal:docpal_dev@localhost:5432/docpal',
     
     // Public config (exposed to client)
     public: {

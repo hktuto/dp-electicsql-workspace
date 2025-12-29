@@ -60,6 +60,7 @@ services:
       ELECTRIC_WRITE_TO_PG_MODE: "direct_writes"
       LOGICAL_PUBLISHER_HOST: postgres
       LOGICAL_PUBLISHER_PORT: 5432
+      PG_PUBLICATION_NAME: "electric_publication"
       # Development mode - DO NOT USE IN PRODUCTION
       ELECTRIC_INSECURE: "true"
     depends_on:

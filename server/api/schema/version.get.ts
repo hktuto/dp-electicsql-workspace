@@ -9,7 +9,7 @@
 
 // Schema version - increment this when schema changes
 // Format: MAJOR.MINOR.PATCH or timestamp-based (e.g., '20251229_001')
-const SCHEMA_VERSION = '2.0.0'
+const SCHEMA_VERSION = '2.0.1'
 
 export default defineEventHandler(() => {
   return {
