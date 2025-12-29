@@ -179,3 +179,183 @@ The workspace components are ready, but the menu navigation system needs to be i
 - [ ] Implement drag-and-drop menu reordering in settings
 - [ ] Connect menu items to actual tables/views/dashboards (Phase 4+)
 
+---
+
+## Additional Improvements (2024-12-29)
+
+### Custom Popover/Dialog System
+
+Created a comprehensive popover system to replace `el-dialog`, `el-popover`, and `el-dropdown` throughout the application.
+
+#### Component: `CommonPopoverDialog`
+**File**: `app/components/common/popoverDialog.vue`
+
+**Features:**
+- ✅ **Smart Positioning** - Automatically detects available space and chooses best placement
+- ✅ **Collision Detection** - Never overlaps the trigger element
+- ✅ **Responsive** - Popover on desktop, dialog on mobile
+- ✅ **Nested Support** - Child popovers don't close parent popovers
+- ✅ **Arrow Indicator** - Points to trigger element
+- ✅ **Programmatic Control** - Expose `open(target)` and `close()` methods
+- ✅ **Keyboard Support** - Close on Escape (smart detection for inputs)
+- ✅ **Scroll/Resize Handling** - Auto-repositions on window events
+
+**Smart Positioning Algorithm:**
+1. Calculate available space in all 4 directions (top, bottom, left, right)
+2. Check if preferred placement has enough space
+3. If not, find direction with most available space
+4. Position popover with offset to avoid overlap
+5. Calculate arrow position to point at trigger center
+6. Clamp to viewport bounds while maintaining separation from trigger
+
+**Nested Popover Handling:**
+- All popovers teleported to `<body>` as siblings
+- Click outside handler checks if click is inside `.custom-popover`
+- Only closes if clicking truly outside all popovers
+- Supports unlimited nesting depth
+
+#### Migrated Components
+
+1. **User Profile Menu** (`app/components/user/profileMenu.vue`)
+   - Migrated from `el-dropdown` to `CommonPopoverDialog`
+   - Better positioning, mobile-responsive
+   - Company switcher, edit profile, logout
+
+2. **Workspace Creation Form** (`app/components/global/workspaceList.vue`)
+   - Migrated from dialog to popover/dialog
+   - Opens near "New Workspace" button on desktop
+   - Full dialog on mobile
+
+3. **Icon Picker** (`app/components/common/iconPickerInput.vue`)
+   - Migrated from `el-dialog` to `CommonPopoverDialog`
+   - Opens near input field
+   - Example of nested popover (icon picker inside workspace form)
+
+### Icon Picker System
+
+Created a Notion-style icon picker with categories, search, and form integration.
+
+#### Components Created:
+
+1. **`CommonIconPicker`** - Core picker component
+   - Category tabs: Popular, Material Symbols, Heroicons, Lucide
+   - Real-time search across ~200 curated icons
+   - Grid layout (8 columns)
+   - Selected state indicator
+   - Preview bar with icon name
+
+2. **`CommonIconPickerInput`** - Form input wrapper
+   - Element Plus input with icon preview
+   - Clear/search buttons
+   - Uses `CommonPopoverDialog` for picker
+   - v-model support
+   - Responsive (popover on desktop, dialog on mobile)
+
+### Workspace Features
+
+#### Two-Stage Search Filter
+**File**: `app/components/global/workspaceList.vue`
+
+**Stage 1 - Preview (Dimming):**
+- User types in search input
+- Non-matching workspaces dim (opacity: 0.4)
+- **Smart Sorting**: Matching items move to the top
+- All items remain visible
+- No commitment required
+
+**Stage 2 - Commit (Filter):**
+- User presses Enter or clicks "Filter" button
+- Non-matching workspaces hidden
+- Press Escape or "Reset" to return to all
+
+**Benefits:**
+- See matches before committing
+- Smart sorting ensures matches visible in long lists
+- Can cancel without losing context
+
+#### Workspace List Card Component
+**File**: `app/components/workspace/listCard.vue`
+
+Extracted individual workspace card into its own component:
+- Displays name, description, icon
+- Click to navigate
+- Settings button
+- `dimmed` prop for search preview
+- Hover effects
+- Better code organization
+
+### Global Composables
+
+#### `useBreakpoint()`
+**File**: `app/composables/useBreakpoint.ts`
+
+Global breakpoint detection using VueUse:
+- Provides `isMobile`, `isTablet`, `isDesktop`, etc.
+- Single source of truth for responsive states
+- SSR-safe reactivity
+- Used by `CommonPopoverDialog` for responsive behavior
+
+### Bug Fixes
+
+1. **JWT Payload Consistency**
+   - Fixed `user.id` → `user.userId` across 15+ API endpoints
+   - Updated all company and workspace APIs
+   - Updated Electric SQL shape filtering
+
+2. **Auto-Company Selection on Refresh**
+   - Moved `companyContext.init()` to `auth.global.ts` middleware
+   - Ensures company context persists after refresh
+   - Automatically selects only company if user has one
+
+3. **Electric SQL Workspace Sync**
+   - Bumped schema version to `3.0.0`
+   - Added `workspaces` to synced tables
+   - Fixed PGLite relation error
+
+4. **Drizzle Query Syntax**
+   - Fixed `where()` chaining using `and()` for multiple conditions
+   - Applied to workspace creation and slug uniqueness checks
+
+5. **Electric SQL Sync Delay**
+   - Added 2-second setTimeout after workspace creation
+   - Allows Electric SQL to sync before manual reload
+   - Documented long-term solutions (optimistic UI updates)
+
+### Documentation Created
+
+
+**Progress Report:**
+- `docs/PROGRESS/20251229.md` - Today's comprehensive progress report
+
+### Rules Updated
+
+Added new section to `.cursor/rules/main/RULE.md`:
+- **Popover and Dialog Components** guideline
+- Always use `CommonPopoverDialog` instead of `el-dialog`, `el-popover`, `el-dropdown`
+- Usage examples and best practices
+- Benefits and when not to use
+
+---
+
+## Status Summary
+
+**Phase 3.0 Backend**: ✅ **Complete**
+- Database schema designed and migrated
+- All CRUD APIs implemented
+- Electric SQL sync configured
+- Row-level filtering working
+
+**Phase 3.0 Frontend**: 🟡 **In Progress**
+- ✅ Page wrappers created
+- ✅ Global components implemented
+- ✅ Workspace list with search
+- ✅ Workspace detail structure
+- ✅ Workspace settings
+- ✅ User profile menu
+- ✅ Icon picker system
+- ✅ Custom popover/dialog system
+- ⏳ Menu sidebar integration (pending)
+- ⏳ Drag-and-drop menu (pending)
+
+**Next Phase**: Phase 4.0 - Dynamic Tables
+

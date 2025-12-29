@@ -6,7 +6,7 @@
 The main icon picker component with category tabs, search, and grid.
 
 ### 2. `<IconPickerInput />` - Form Input Wrapper
-An input field with dialog that opens the icon picker.
+An input field with popover/dialog that opens the icon picker. Uses `CommonPopoverDialog` for responsive display (popover on desktop, dialog on mobile).
 
 ---
 
@@ -186,7 +186,9 @@ async function handleSubmit() {
 - Element Plus input wrapper
 - Icon preview in prepend
 - Clear button in append
-- Dialog interface
+- Popover/Dialog interface (responsive)
+  - Desktop: Smart-positioned popover near input
+  - Mobile: Full-screen dialog
 
 ---
 

@@ -87,7 +87,7 @@ export default defineEventHandler(async (event) => {
   // Get user's company IDs for filtering (cached for this request)
   let userCompanyIds: string[] | null = null
   if (user && !user.isSuperAdmin && COMPANY_FILTERED_TABLES.includes(table)) {
-    userCompanyIds = await getUserCompanyIds(user.id)
+    userCompanyIds = await getUserCompanyIds(user.userId)
     
     // If user has no companies, return empty for company-filtered tables
     if (userCompanyIds.length === 0) {
@@ -149,7 +149,7 @@ export default defineEventHandler(async (event) => {
       case 'company_invites':
         // Users can only see invites for companies they're ADMIN of
         // Get admin company IDs (owner/admin role only)
-        const adminCompanyIds = await getUserAdminCompanyIds(user.id)
+        const adminCompanyIds = await getUserAdminCompanyIds(user.userId)
         
         if (adminCompanyIds.length === 0) {
           // User is not admin of any company, return empty
@@ -163,7 +163,7 @@ export default defineEventHandler(async (event) => {
         
       case 'workspaces':
         // Users can only see workspaces they have access to (via workspace_users array)
-        originUrl.searchParams.set('where', `'${user.id}' = ANY(workspace_users)`)
+        originUrl.searchParams.set('where', `'${user.userId}' = ANY(workspace_users)`)
         break
     }
   }

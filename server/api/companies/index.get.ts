@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
   const memberships = await db
     .select({ companyId: schema.companyMembers.companyId })
     .from(schema.companyMembers)
-    .where(eq(schema.companyMembers.userId, user.id))
+    .where(eq(schema.companyMembers.userId, user.userId))
 
   if (memberships.length === 0) {
     return { companies: [] }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Workspace } from '~/composables/useWorkspaceSync'
-
+import { useAutoAnimate } from '@formkit/auto-animate/vue'
 const { user } = useAuth()
 const router = useRouter()
 const workspaceSync = useWorkspaceSync()
@@ -12,6 +12,8 @@ const breakpoint = useBreakpoint()
 const workspaces = ref<Workspace[]>([])
 const loadingWorkspaces = ref(false)
 const showCreateDialog = ref(false)
+const searchQuery = ref('')
+const isFilterActive = ref(false) // Stage 2: committed filter
 
 // Form data
 const createForm = ref({
@@ -19,6 +21,90 @@ const createForm = ref({
   description: '',
   icon: '',
 })
+
+// Helper function to check if workspace matches query
+function matchesSearch(workspace: Workspace, query: string): boolean {
+  if (!query) return true
+  
+  const lowerQuery = query.toLowerCase()
+  return (
+    workspace.name.toLowerCase().includes(lowerQuery) ||
+    workspace.description?.toLowerCase().includes(lowerQuery) ||
+    workspace.slug.toLowerCase().includes(lowerQuery)
+  )
+}
+
+// Stage 1: Dimming preview (show all, but mark which match)
+// Sort to show matches first
+const workspacesWithMatchStatus = computed(() => {
+  if (!searchQuery.value.trim() || isFilterActive.value) {
+    return workspaces.value.map(w => ({ workspace: w, matches: true, dimmed: false }))
+  }
+
+  const withStatus = workspaces.value.map(workspace => ({
+    workspace,
+    matches: matchesSearch(workspace, searchQuery.value),
+    dimmed: !matchesSearch(workspace, searchQuery.value),
+  }))
+  
+  // Sort: matches first, then non-matches
+  return withStatus.sort((a, b) => {
+    if (a.matches && !b.matches) return -1
+    if (!a.matches && b.matches) return 1
+    return 0
+  })
+})
+
+// Stage 2: Actual filtering (hide non-matching)
+const filteredWorkspaces = computed(() => {
+  if (!isFilterActive.value || !searchQuery.value.trim()) {
+    return workspacesWithMatchStatus.value
+  }
+
+  return workspacesWithMatchStatus.value.filter(({ matches }) => matches)
+})
+
+// Apply filter (Stage 2)
+function applyFilter() {
+  if (searchQuery.value.trim()) {
+    isFilterActive.value = true
+  }
+}
+
+// Reset filter
+function resetFilter() {
+  searchQuery.value = ''
+  isFilterActive.value = false
+}
+
+// Handle Enter key
+function handleSearchEnter() {
+  if (!searchQuery.value.trim()) return
+  
+  // Count matches
+  const matches = workspacesWithMatchStatus.value.filter(item => item.matches)
+  
+  // If only one match, navigate directly to it
+  if (matches.length === 1 && matches[0]) {
+    const workspace = matches[0].workspace
+    goToWorkspace(workspace.slug)
+    // Optional: clear search after navigation
+    resetFilter()
+    return
+  }
+  
+  // Otherwise, apply filter normally
+  applyFilter()
+}
+
+// Handle Escape key
+function handleSearchEscape() {
+  if (isFilterActive.value) {
+    resetFilter()
+  } else if (searchQuery.value) {
+    searchQuery.value = ''
+  }
+}
 
 // Load workspaces from PGLite
 async function loadWorkspaces() {
@@ -46,7 +132,8 @@ onMounted(async () => {
   await loadWorkspaces()
 
   // Subscribe to workspace changes - re-load when data changes
-  workspaceSync.onChange(() => {
+  workspaceSync.onChange((changes) => {
+    console.log('[WorkspaceList] Data changed:', changes)
     loadWorkspaces()
   })
 })
@@ -87,7 +174,12 @@ async function handleCreate() {
     popoverDialogRef.value?.close()
     createForm.value = { name: '', description: '', icon: '' }
     
-    // Data will auto-refresh via Electric SQL sync
+    // Wait for Electric SQL to sync, then reload
+    // Electric SQL uses HTTP streaming which can take 1-2 seconds to detect changes
+    setTimeout(() => {
+      console.log('[WorkspaceList] Manual reload after creation')
+      loadWorkspaces()
+    }, 2000)
   } catch (error: any) {
     ElMessage.error(error.message || 'Failed to create workspace')
   } finally {
@@ -125,6 +217,8 @@ function handleOpenCreateInEmptyState() {
     popoverDialogRef.value?.open(el)
   }
 }
+
+const [parent] = useAutoAnimate()
 </script>
 
 <template>
@@ -169,7 +263,7 @@ function handleOpenCreateInEmptyState() {
                 </el-form-item>
 
               <el-form-item label="Icon">
-                <IconPickerInput 
+                <CommonIconPickerInput 
                   v-model="createForm.icon" 
                   placeholder="Choose an icon"
                   :size="breakpoint.isMobile ? 'default' : 'small'"
@@ -202,6 +296,49 @@ function handleOpenCreateInEmptyState() {
         </template>
       </CommonPopoverDialog>
 
+      <!-- Search Bar -->
+      <div v-if="!loadingWorkspaces && currentCompany && workspaces.length > 0" class="search-bar">
+        <el-input
+          v-model="searchQuery"
+          placeholder="Search workspaces... (Press Enter to filter)"
+          clearable
+          size="large"
+          @keyup.enter="handleSearchEnter"
+          @keyup.esc="handleSearchEscape"
+        >
+          <template #prefix>
+            <Icon name="material-symbols:search" />
+          </template>
+          <template #append>
+            <el-button 
+              v-if="!isFilterActive && searchQuery" 
+              @click="applyFilter"
+              type="primary"
+            >
+              Filter
+            </el-button>
+            <el-button 
+              v-if="isFilterActive" 
+              @click="resetFilter"
+            >
+              <Icon name="material-symbols:close" />
+              Reset
+            </el-button>
+          </template>
+        </el-input>
+        
+        <!-- Filter status indicator -->
+        <div v-if="isFilterActive" class="filter-status">
+          <Icon name="material-symbols:filter-alt" />
+          <span>Showing {{ filteredWorkspaces.length }} of {{ workspaces.length }} workspaces</span>
+        </div>
+        <div v-else-if="searchQuery && !isFilterActive" class="filter-preview">
+          <Icon name="material-symbols:visibility-outline" />
+          <span>Preview: {{ workspacesWithMatchStatus.filter(w => w.matches).length }} matches</span>
+          <span class="hint">• Press Enter or click Filter to apply</span>
+        </div>
+      </div>
+
       <div v-if="loadingWorkspaces" class="loading">
         <el-icon class="is-loading"><Loading /></el-icon>
         <span>Loading workspaces...</span>
@@ -223,43 +360,24 @@ function handleOpenCreateInEmptyState() {
         </el-empty>
       </div>
 
-      <div v-else class="workspace-grid">
-        <el-card 
-          v-for="workspace in workspaces" 
-          :key="workspace.id"
-          class="workspace-card"
-          shadow="hover"
-        >
-          <div class="workspace-header">
-            <div class="workspace-icon">
-              <Icon v-if="workspace.icon" :name="workspace.icon" size="32" />
-              <el-avatar v-else :size="48" shape="square">
-                {{ workspace.name.charAt(0).toUpperCase() }}
-              </el-avatar>
-            </div>
-            <el-dropdown trigger="click" @command="(cmd: string) => cmd === 'settings' ? goToWorkspaceSettings(workspace.slug) : null">
-              <el-button text circle>
-                <Icon name="material-symbols:more-vert" />
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="settings">
-                    <Icon name="material-symbols:settings-outline" />
-                    Settings
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-          
-          <div class="workspace-info" @click="goToWorkspace(workspace.slug)">
-            <h3>{{ workspace.name }}</h3>
-            <p v-if="workspace.description">{{ workspace.description }}</p>
-            <div class="workspace-meta">
-              <el-tag size="small">{{ workspace.menu?.length || 0 }} items</el-tag>
-            </div>
-          </div>
-        </el-card>
+      <div v-else-if="filteredWorkspaces.length === 0" class="no-results">
+        <el-empty description="No workspaces found">
+          <template #default>
+            <p>Try adjusting your search query</p>
+            <el-button @click="searchQuery = ''">Clear Search</el-button>
+          </template>
+        </el-empty>
+      </div>
+
+      <div v-else ref="parent" class="workspace-grid">
+        <WorkspaceListCard
+          v-for="item in filteredWorkspaces"
+          :key="item.workspace.id"
+          :workspace="item.workspace"
+          :dimmed="item.dimmed"
+          @click="goToWorkspace(item.workspace.slug)"
+          @settings="goToWorkspaceSettings(item.workspace.slug)"
+        />
       </div>
     </div>
 
@@ -307,8 +425,40 @@ function handleOpenCreateInEmptyState() {
   color: var(--app-text-color-secondary);
 }
 
+.search-bar {
+  margin-bottom: var(--app-space-l);
+  max-width: 600px;
+}
+
+.filter-status,
+.filter-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-xs);
+  margin-top: var(--app-space-xs);
+  font-size: var(--app-font-size-s);
+  color: var(--app-text-color-secondary);
+  
+  .i-icon {
+    font-size: var(--app-font-size-m);
+  }
+}
+
+.filter-status {
+  color: var(--el-color-primary);
+  font-weight: 500;
+}
+
+.filter-preview {
+  .hint {
+    opacity: 0.7;
+    font-style: italic;
+  }
+}
+
 .no-company,
-.no-workspaces {
+.no-workspaces,
+.no-results {
   padding: var(--app-space-xl);
 }
 
@@ -316,59 +466,6 @@ function handleOpenCreateInEmptyState() {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: var(--app-space-m);
-}
-
-.workspace-card {
-  transition: transform 0.2s ease;
-
-  &:hover {
-    transform: translateY(-2px);
-  }
-
-  :deep(.el-card__body) {
-    display: flex;
-    flex-direction: column;
-    gap: var(--app-space-m);
-  }
-}
-
-.workspace-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.workspace-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.workspace-info {
-  flex: 1;
-  cursor: pointer;
-
-  h3 {
-    margin: 0 0 var(--app-space-xs);
-    font-size: var(--app-font-size-l);
-    font-weight: 600;
-  }
-
-  p {
-    margin: 0 0 var(--app-space-s);
-    font-size: var(--app-font-size-s);
-    color: var(--app-text-color-secondary);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-}
-
-.workspace-meta {
-  display: flex;
-  gap: var(--app-space-xs);
-  align-items: center;
 }
 
 // Create form styles

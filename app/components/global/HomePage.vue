@@ -54,7 +54,7 @@ async function goToCompany(slug: string) {
   // Set company context first, then navigate
   const success = await companyContext.setCompanyBySlug(slug)
   if (success) {
-    router.push(`/company/${slug}`)
+  router.push(`/company/${slug}`)
   } else {
     ElMessage.error('Failed to access company')
   }

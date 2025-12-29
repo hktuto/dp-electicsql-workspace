@@ -28,6 +28,55 @@ DocPal is a low-code platform built with Nuxt 4 + NuxtHub that allows users to c
   - Border radius: `var(--app-border-radius-s)`, `var(--app-border-radius-m)`, etc.
   - Shadows: `var(--app-shadow-s)`, `var(--app-shadow-m)`, `var(--app-shadow-l)`, etc.
 
+### Popover and Dialog Components
+
+**Always use `CommonPopoverDialog`** (`app/components/common/popoverDialog.vue`) instead of `el-dialog`, `el-popover`, or `el-dropdown` when possible.
+
+**Benefits:**
+- ✅ Smart positioning with collision detection
+- ✅ Automatic mobile-responsive behavior (popover on desktop, dialog on mobile)
+- ✅ Nested popover support (child popovers don't close parents)
+- ✅ Consistent UX across the application
+- ✅ Arrow pointing to trigger element
+
+**Usage:**
+```vue
+<script setup>
+const triggerRef = ref<HTMLElement>()
+const popoverRef = ref()
+
+function openPopover() {
+  const target = triggerRef.value
+  if (target) {
+    const el = (target as any).$el || target
+    popoverRef.value?.open(el)
+  }
+}
+</script>
+
+<template>
+  <el-button ref="triggerRef" @click="openPopover">
+    Open
+  </el-button>
+  
+  <CommonPopoverDialog
+    ref="popoverRef"
+    title="Title"
+    :width="400"
+    placement="bottom-start"
+  >
+    <!-- Content here -->
+  </CommonPopoverDialog>
+</template>
+```
+
+**When NOT to use:**
+- Simple tooltips → Use `el-tooltip`
+- Native browser dialogs (confirm/alert) → Use `ElMessageBox`
+- Full-page modals with complex layouts → Consider `el-drawer`
+
+See `docs/POPOVER_DIALOG_USAGE.md` and `docs/SMART_POPOVER_POSITIONING.md` for details.
+
 ## Frontend Architecture
 
 ### Page/Component Pattern
@@ -83,6 +132,7 @@ const props = defineProps<Props>()
   2. Convert params to props
   3. Render the global component
 - Keep page files minimal (< 20 lines)
+= **NEVER** create additonal document, document should only have 3 sections: PLAN (phase development plan), PROGRESS (daily progress report), REQUIREMENT (requirement documentation), if any additional document needed, please create a new file follow current phase number + 0.1, for example, if current phase is 3.0, and you need to create a new document for the 3.1 phase, the file name should be `3.1_new-feature.md`
 
 ## Project Management Structure
 

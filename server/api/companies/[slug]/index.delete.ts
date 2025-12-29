@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
       .where(
         and(
           eq(schema.companyMembers.companyId, company.id),
-          eq(schema.companyMembers.userId, user.id)
+          eq(schema.companyMembers.userId, user.userId)
         )
       )
 

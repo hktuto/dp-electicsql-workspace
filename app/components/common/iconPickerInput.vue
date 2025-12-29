@@ -22,17 +22,26 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-const showPicker = ref(false)
 const selectedIcon = ref(props.modelValue || '')
+const inputRef = ref<HTMLElement>()
+const popoverRef = ref()
 
 watch(() => props.modelValue, (value) => {
   selectedIcon.value = value || ''
 })
 
+function openPicker() {
+  const target = inputRef.value
+  if (target) {
+    const el = (target as any).$el || target
+    popoverRef.value?.open(el)
+  }
+}
+
 function handleSelect(iconName: string) {
   selectedIcon.value = iconName
   emit('update:modelValue', iconName)
-  showPicker.value = false
+  popoverRef.value?.close()
 }
 
 function clearIcon() {
@@ -44,11 +53,12 @@ function clearIcon() {
 <template>
   <div class="icon-picker-input">
     <el-input
+      ref="inputRef"
       :model-value="selectedIcon"
       :placeholder="placeholder"
       :size="size"
       readonly
-      @click="showPicker = true"
+      @click="openPicker"
     >
       <template #prepend>
         <div class="icon-preview">
@@ -67,25 +77,26 @@ function clearIcon() {
         <el-button
           v-else
           text
-          @click.stop="showPicker = true"
+          @click.stop="openPicker"
         >
           <Icon name="material-symbols:search" />
         </el-button>
       </template>
     </el-input>
 
-    <!-- Icon Picker Dialog -->
-    <el-dialog
-      v-model="showPicker"
+    <!-- Icon Picker Popover -->
+    <CommonPopoverDialog
+      ref="popoverRef"
       title="Select Icon"
-      width="520px"
+      :width="520"
+      placement="bottom-start"
       :close-on-click-modal="false"
     >
-      <IconPicker
+      <CommonIconPicker
         :model-value="selectedIcon"
         @select="handleSelect"
       />
-    </el-dialog>
+    </CommonPopoverDialog>
   </div>
 </template>
 

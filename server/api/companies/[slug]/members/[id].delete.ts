@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
       .where(
         and(
           eq(schema.companyMembers.companyId, company.id),
-          eq(schema.companyMembers.userId, user.id)
+          eq(schema.companyMembers.userId, user.userId)
         )
       )
 
@@ -73,7 +73,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Cannot remove yourself (use leave endpoint instead)
-  if (targetMember.userId === user.id) {
+  if (targetMember.userId === user.userId) {
     throw createError({
       statusCode: 400,
       message: 'Cannot remove yourself. Use the leave endpoint instead.',

@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
     .select({ role: schema.companyMembers.role })
     .from(schema.companyMembers)
     .where(eq(schema.companyMembers.companyId, workspace.companyId))
-    .where(eq(schema.companyMembers.userId, user.id))
+    .where(eq(schema.companyMembers.userId, user.userId))
     .limit(1)
 
   if (membership.length === 0 && !user.isSuperAdmin) {

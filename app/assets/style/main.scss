@@ -53,3 +53,16 @@ body {
   -webkit-backdrop-filter: blur(6.3px);
   border: 1px solid rgba(255, 255, 255, 0.31);
 }
+
+
+// helper class for poperoverDialog
+
+.focus-outline{
+  outline: 2px solid var(--app-primary-alpha-50) !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+}
+
+// override element style
+.el-card{
+  --el-card-border-radius: var(--app-border-radius-m) !important;
+}

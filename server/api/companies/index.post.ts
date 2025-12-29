@@ -60,15 +60,15 @@ export default defineEventHandler(async (event) => {
     slug,
     description: description || null,
     logo: logo || null,
-    companyUsers: [user.id],
-    createdBy: user.id,
+    companyUsers: [user.userId],
+    createdBy: user.userId,
   })
 
   // Add creator as owner
   await db.insert(schema.companyMembers).values({
     id: generateUUID(),
     companyId,
-    userId: user.id,
+    userId: user.userId,
     role: 'owner',
   })
 

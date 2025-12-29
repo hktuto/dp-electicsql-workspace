@@ -60,14 +60,11 @@ onMounted(async () => {
 })
 
 // Actions
-function handleEditProfile() {
-  router.push('/profile')
-}
-
 async function handleSwitchCompany(companyId: string) {
   const success = await companyContext.setCompanyById(companyId)
   if (success) {
     ElMessage.success('Company switched')
+    popoverRef.value?.close()
     // Optionally navigate to company page
     const company = companies.value.find(c => c.id === companyId)
     if (company) {
@@ -78,7 +75,13 @@ async function handleSwitchCompany(companyId: string) {
   }
 }
 
+function handleEditProfile() {
+  popoverRef.value?.close()
+  router.push('/profile')
+}
+
 function handleEditCompany() {
+  popoverRef.value?.close()
   if (companyContext.currentCompany.value) {
     router.push(`/company/${companyContext.currentCompany.value.slug}`)
   }
@@ -88,14 +91,32 @@ async function handleLogout() {
   const { logout } = useAuth()
   await logout()
   companyContext.clearCompany()
+  popoverRef.value?.close()
   router.push('/auth/login')
+}
+
+// Popover control
+const triggerRef = ref<HTMLElement>()
+const popoverRef = ref()
+
+function handleOpenMenu() {
+  const target = triggerRef.value
+  if (target) {
+    const el = (target as any).$el || target
+    popoverRef.value?.open(el)
+  }
 }
 </script>
 
 <template>
-  <el-dropdown trigger="click" placement="bottom-end">
+  <div>
     <!-- Trigger Button -->
-    <div class="user-profile-trigger" :class="{ collapse }">
+    <div 
+      ref="triggerRef"
+      class="user-profile-trigger" 
+      :class="{ collapse }"
+      @click="handleOpenMenu"
+    >
       <el-avatar :size="collapse ? 32 : 36">
         {{ userInitial }}
       </el-avatar>
@@ -112,9 +133,14 @@ async function handleLogout() {
       />
     </div>
 
-    <!-- Dropdown Menu -->
-    <template #dropdown>
-      <el-dropdown-menu class="user-profile-menu">
+    <!-- Profile Menu Popover -->
+    <CommonPopoverDialog
+      ref="popoverRef"
+      title="Profile"
+      :width="320"
+      placement="bottom-end"
+    >
+      <div class="user-profile-menu">
         <!-- User Info Header (Always show in dropdown) -->
         <div class="menu-header">
           <el-avatar :size="48">
@@ -129,10 +155,12 @@ async function handleLogout() {
           </div>
         </div>
 
-        <el-dropdown-item divided @click="handleEditProfile">
+        <div class="menu-divider" />
+        
+        <div class="menu-item" @click="handleEditProfile">
           <Icon name="material-symbols:person-outline" />
           <span>Edit Profile</span>
-        </el-dropdown-item>
+        </div>
 
         <!-- Company Switcher Section -->
         <div class="menu-section">
@@ -166,23 +194,23 @@ async function handleLogout() {
         </div>
 
         <!-- Edit Company (if admin) -->
-        <el-dropdown-item 
-          v-if="companyContext.canManageCompany"
-          divided
-          @click="handleEditCompany"
-        >
-          <Icon name="material-symbols:business-outline" />
-          <span>Edit Company</span>
-        </el-dropdown-item>
+        <template v-if="companyContext.canManageCompany">
+          <div class="menu-divider" />
+          <div class="menu-item" @click="handleEditCompany">
+            <Icon name="material-symbols:business-outline" />
+            <span>Edit Company</span>
+          </div>
+        </template>
 
         <!-- Logout -->
-        <el-dropdown-item divided @click="handleLogout">
+        <div class="menu-divider" />
+        <div class="menu-item" @click="handleLogout">
           <Icon name="material-symbols:logout" />
           <span>Logout</span>
-        </el-dropdown-item>
-      </el-dropdown-menu>
-    </template>
-  </el-dropdown>
+        </div>
+      </div>
+    </CommonPopoverDialog>
+  </div>
 </template>
 
 <style scoped lang="scss">
@@ -235,22 +263,40 @@ async function handleLogout() {
   text-overflow: ellipsis;
 }
 
-// Dropdown Menu Styles
+// Profile Menu Styles
 .user-profile-menu {
-  min-width: 280px;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
 
-  :deep(.el-dropdown-menu__item) {
-    display: flex;
-    align-items: center;
-    gap: var(--app-space-s);
-    padding: var(--app-space-s) var(--app-space-m);
-    
-    .iconify {
-      font-size: 20px;
-      color: var(--app-text-color-secondary);
-    }
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-s);
+  padding: var(--app-space-s) var(--app-space-m);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  user-select: none;
+
+  &:hover {
+    background-color: var(--el-fill-color-light);
   }
+
+  .iconify {
+    font-size: 20px;
+    color: var(--app-text-color-secondary);
+  }
+
+  span {
+    font-size: var(--app-font-size-s);
+    color: var(--app-text-color-primary);
+  }
+}
+
+.menu-divider {
+  height: 1px;
+  margin: var(--app-space-xs) 0;
+  background-color: var(--app-border-color);
 }
 
 .menu-header {
@@ -258,8 +304,9 @@ async function handleLogout() {
   align-items: center;
   gap: var(--app-space-m);
   padding: var(--app-space-m);
-  border-bottom: 1px solid var(--app-border-color);
+  margin-bottom: var(--app-space-s);
   background: var(--el-fill-color-lighter);
+  border-radius: var(--app-border-radius-s);
 }
 
 .header-info {
@@ -289,7 +336,6 @@ async function handleLogout() {
 
 .menu-section {
   padding: var(--app-space-s) 0;
-  border-bottom: 1px solid var(--app-border-color);
 }
 
 .section-title {

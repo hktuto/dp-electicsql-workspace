@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
     .where(
       and(
         eq(schema.companyMembers.companyId, companyId),
-        eq(schema.companyMembers.userId, user.id)
+        eq(schema.companyMembers.userId, user.userId)
       )
     )
     .limit(1)
@@ -99,7 +99,7 @@ export default defineEventHandler(async (event) => {
     menu: [],
     companyId,
     workspaceUsers,
-    createdBy: user.id,
+    createdBy: user.userId,
   })
 
   // Fetch created workspace
