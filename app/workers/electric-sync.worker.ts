@@ -219,6 +219,9 @@ async function initDB(): Promise<any> {
 
     console.log('[Electric Worker] PGlite initialized')
     
+    // Preload table schemas from server
+    await fetchAllTableSchemas()
+    
     // Save schema version after successful init
     if (newVersion) {
       setLocalSchemaVersion(newVersion)
@@ -299,23 +302,64 @@ function hasChanges(changes: DataChange['changes']): boolean {
 }
 
 // ============================================
-// Table Schema Definitions
+// Table Schema Management
 // ============================================
 
-// Known table schemas for PGLite
-// These must match the PostgreSQL schema
-const TABLE_SCHEMAS: Record<string, string> = {
-  test_items: `
-    CREATE TABLE IF NOT EXISTS test_items (
-      id UUID PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT,
-      completed BOOLEAN NOT NULL DEFAULT false,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `,
-  // Add more table schemas as needed
+// Cache for fetched table schemas
+const tableSchemaCache: Record<string, string> = {}
+
+/**
+ * Fetch table schema from server
+ * The server generates CREATE TABLE SQL from the actual PostgreSQL schema
+ */
+async function fetchTableSchema(tableName: string): Promise<string | null> {
+  // Check cache first
+  if (tableSchemaCache[tableName]) {
+    return tableSchemaCache[tableName]
+  }
+
+  try {
+    const response = await fetch(`${self.location.origin}/api/schema/tables?table=${tableName}`)
+    if (!response.ok) {
+      console.warn(`[Electric Worker] Failed to fetch schema for ${tableName}:`, response.status)
+      return null
+    }
+    
+    const data = await response.json()
+    const schema = data.schemas?.[tableName]
+    
+    if (schema) {
+      tableSchemaCache[tableName] = schema
+      console.log(`[Electric Worker] Fetched schema for ${tableName}`)
+    }
+    
+    return schema || null
+  } catch (error) {
+    console.warn(`[Electric Worker] Error fetching schema for ${tableName}:`, error)
+    return null
+  }
+}
+
+/**
+ * Fetch all table schemas from server (preload cache)
+ */
+async function fetchAllTableSchemas(): Promise<void> {
+  try {
+    const response = await fetch(`${self.location.origin}/api/schema/tables`)
+    if (!response.ok) {
+      console.warn('[Electric Worker] Failed to fetch all schemas:', response.status)
+      return
+    }
+    
+    const data = await response.json()
+    for (const [tableName, schema] of Object.entries(data.schemas || {})) {
+      tableSchemaCache[tableName] = schema as string
+    }
+    
+    console.log('[Electric Worker] Preloaded schemas for:', Object.keys(tableSchemaCache))
+  } catch (error) {
+    console.warn('[Electric Worker] Error fetching all schemas:', error)
+  }
 }
 
 // ============================================
@@ -346,12 +390,18 @@ async function syncShape(
     console.log(`[Electric Worker] Starting sync for "${shapeName}"...`, fullUrl)
     
     // Create table if it doesn't exist
-    const schema = customSchema || TABLE_SCHEMAS[tableName]
+    // Priority: customSchema > cached schema > fetch from server
+    let schema: string | undefined = customSchema || tableSchemaCache[tableName]
+    
+    if (!schema) {
+      schema = (await fetchTableSchema(tableName)) || undefined
+    }
+    
     if (schema) {
       console.log(`[Electric Worker] Creating table "${tableName}" if not exists...`)
       await db.exec(schema)
     } else {
-      console.warn(`[Electric Worker] No schema found for table "${tableName}"`)
+      console.warn(`[Electric Worker] No schema found for table "${tableName}", sync may fail`)
     }
     
     // Initialize shape state

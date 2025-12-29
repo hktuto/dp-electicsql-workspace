@@ -11,14 +11,14 @@
 
 ## Tasks
 
-- [ ] Create users table schema
-- [ ] Implement password hashing (bcrypt/argon2)
-- [ ] Create login/logout API endpoints
-- [ ] Setup session management (JWT or server sessions)
-- [ ] Create seed script for super admin
-- [ ] Setup Electric SQL shape for users
-- [ ] Create login page UI component
-- [ ] Setup auth middleware
+- [x] Create users table schema
+- [x] Implement password hashing (bcrypt)
+- [x] Create login/logout API endpoints
+- [x] Setup session management (JWT + HTTP-only cookies)
+- [x] Create seed script for super admin
+- [x] Setup Electric SQL shape for users (dynamic schema generation)
+- [x] Create login page UI component
+- [x] Setup auth middleware (client + server)
 
 ---
 
@@ -87,9 +87,48 @@ async function seedSuperAdmin() {
 
 ## Completion Criteria
 
-- [ ] User can login with email/password
-- [ ] User can logout
-- [ ] Super admin exists via seed
-- [ ] Auth middleware protects routes
-- [ ] User data syncs to frontend via Electric SQL
+- [x] User can login with email/password
+- [x] User can logout
+- [x] Super admin exists via seed
+- [x] Auth middleware protects routes
+- [x] User data syncs to frontend via Electric SQL
+
+---
+
+## Completed: 2024-12-29
+
+### Implementation Notes
+
+- **Auth**: JWT tokens stored in HTTP-only cookies (30 days expiry)
+- **Password**: bcrypt with 10 salt rounds
+- **Client Middleware**: `app/middleware/auth.global.ts` - protects routes, redirects to login
+- **Server Middleware**: `server/middleware/00.auth.ts` - attaches user to context
+- **Custom API**: `app/plugins/api.ts` with `skipAuthRedirect` and `skipAllErrors` options
+- **Electric Schema**: Dynamic schema generation from PostgreSQL (`/api/schema/tables`)
+
+### Key Files
+- `server/utils/jwt.ts` - JWT sign/verify
+- `server/utils/auth.ts` - getCurrentUser, requireAuth helpers
+- `app/composables/useAuth.ts` - Frontend auth state
+- `app/composables/useAPI.ts` - Custom $api wrapper
+
+### Electric SQL Proxy (Added 2024-12-29)
+
+Implemented authenticated Electric SQL proxy at `/api/electric/shape`:
+- Requires authentication for protected tables (users, companies, company_members)
+- Forwards Electric protocol params (offset, handle, live, etc.)
+- Sets `Vary: Cookie, Authorization` for cache isolation
+- WHERE filtering deferred to Phase 2 (needs company context)
+
+### Sync Composables (Added 2024-12-29)
+
+Created domain-based sync composables:
+- `app/composables/useUserSync.ts` - Syncs users table
+- `app/composables/useCompanySync.ts` - Syncs companies & company_members tables
+
+Both composables:
+- Use authenticated proxy endpoint
+- Provide reactive data from PGLite
+- Auto-reload on data changes
+- Include finder methods (findById, findBySlug, etc.)
 

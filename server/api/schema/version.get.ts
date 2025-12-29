@@ -9,7 +9,7 @@
 
 // Schema version - increment this when schema changes
 // Format: MAJOR.MINOR.PATCH or timestamp-based (e.g., '20251229_001')
-const SCHEMA_VERSION = '0.0.1'
+const SCHEMA_VERSION = '1.0.0'
 
 export default defineEventHandler(() => {
   return {
@@ -17,11 +17,9 @@ export default defineEventHandler(() => {
     // List of tables that are synced to PGLite
     // This helps the worker know which tables to expect
     tables: [
-      'test_items',
-      // Add more tables as they are created
-      // 'users',
-      // 'companies',
-      // 'workspaces',
+      'users',
+      'companies',
+      'company_members',
     ],
   }
 })

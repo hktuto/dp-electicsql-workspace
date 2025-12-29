@@ -1,14 +1,16 @@
+import { v7 as uuidv7 } from 'uuid'
+
 /**
  * UUID Utilities
  * 
- * Generate UUIDs client-side as required by Electric SQL.
+ * Using UUID v7 which is time-ordered (sortable) for better database indexing.
+ * Required by Electric SQL - IDs must be generated client-side.
  */
 
 /**
- * Generate a v4 UUID using crypto.randomUUID()
- * Available in all modern runtimes (Node 19+, Cloudflare Workers, browsers)
+ * Generate a UUID v7
+ * Time-ordered UUIDs that are sortable and better for database performance
  */
 export function generateUUID(): string {
-  return crypto.randomUUID()
+  return uuidv7()
 }
-

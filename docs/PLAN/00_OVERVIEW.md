@@ -143,7 +143,7 @@ The Electric SQL worker broadcasts change events for all shape syncs:
 ## Current Status
 
 - [x] Phase 0.0: Infrastructure - ✅ Complete
-- [ ] Phase 1.0: Foundation - Not Started
+- [x] Phase 1.0: Foundation (Auth & User) - ✅ Complete
 - [ ] Phase 2.0: Company Management - Not Started
 - [ ] Phase 3.0: Workspace & Navigation - Not Started
 - [ ] Phase 4.0: Dynamic Tables - Not Started

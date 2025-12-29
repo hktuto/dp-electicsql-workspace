@@ -20,6 +20,13 @@ DocPal is a low-code platform built with Nuxt 4 + NuxtHub that allows users to c
 - **Use Nuxt Icon** (`<Icon>`) for icons whenever possible instead of other icon libraries
 - Follow Element Plus design patterns and component APIs
 - Use SCSS with CSS Variables for styling (defined in `@/assets/style/`)
+- **All `<el-form>` must use `label-position="top"`** for consistent form layouts
+- **Use system CSS variables** from `@/assets/style/variable.scss` for colors and sizing:
+  - Colors: `var(--app-primary-color)`, `var(--app-grey-*)`, `var(--app-text-color-*)`, etc.
+  - Spacing: `var(--app-space-xs)`, `var(--app-space-s)`, `var(--app-space-m)`, etc.
+  - Font sizes: `var(--app-font-size-s)`, `var(--app-font-size-m)`, `var(--app-font-size-l)`, etc.
+  - Border radius: `var(--app-border-radius-s)`, `var(--app-border-radius-m)`, etc.
+  - Shadows: `var(--app-shadow-s)`, `var(--app-shadow-m)`, `var(--app-shadow-l)`, etc.
 
 ## Project Management Structure
 
