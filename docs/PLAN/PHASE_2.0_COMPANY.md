@@ -164,3 +164,41 @@ if (table === 'companies' && user && !user.isSuperAdmin) {
 - `app/composables/useCompanyContext.ts` - Company context management
 - `app/pages/company/[slug].vue` - Company settings page
 - `app/components/global/HomePage.vue` - Updated with company list
+
+---
+
+## Updates: 2024-12-30
+
+### Electric SQL Sync Pattern Refactor
+
+**Pattern: Query on demand, subscribe to changes**
+
+- Removed global data refs from sync composables (data lives in PGLite only)
+- Components query what they need, store in local refs
+- Components subscribe to changes via `onChange` callbacks
+- This scales to 100k+ rows without memory duplication
+
+### Electric SQL Proxy Fix
+
+Fixed proxy auth based on [official Electric SQL example](https://electric-sql.com/demos/proxy-auth):
+- Stream `response.body` directly (required for live polling)
+- Copy ALL response headers, delete only `content-encoding`/`content-length`
+- This fixes missing `electric-cursor` header issue
+
+### Full Database Reset Script
+
+Added `pnpm db:reset` script (`scripts/reset-db.sh`) that:
+1. Drops ALL tables in PostgreSQL (including migrations)
+2. Runs `db:generate` and `db:migrate`
+3. Restarts Electric container (clears shape cache)
+4. Seeds dummy data
+
+### Key Changes
+
+- `app/composables/useCompanySync.ts` - Query helpers instead of global refs
+- `app/composables/useUserSync.ts` - Query helpers instead of global refs
+- `app/composables/useInviteSync.ts` - Query helpers instead of global refs
+- `server/api/electric/shape.get.ts` - Fixed proxy to stream body
+- `server/api/dev/reset.post.ts` - Dynamic table truncation
+- `scripts/reset-db.sh` - Full reset script
+- `.cursor/rules/main/RULE.md` - Added Electric SQL sync pattern docs
