@@ -1,6 +1,6 @@
 import { eq, desc } from 'drizzle-orm'
 import { dataTables, dataTableColumns, tableMigrations } from 'hub:db:schema'
-import { generateAddColumnSql, executeSql, validateColumnName } from '~/server/utils/dynamic-table'
+import { generateAddColumnSql, executeSql, validateColumnName } from '~~/server/utils/dynamic-table'
 
 export default defineEventHandler(async (event) => {
   // Auth check
