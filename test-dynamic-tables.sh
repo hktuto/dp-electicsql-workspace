@@ -18,8 +18,17 @@ SEED_RESPONSE=$(curl -s -X POST "$API_URL/dev/seed" \
   -H "x-dev-secret: docpal-dev-secret")
 echo "✅ Seed response:"
 echo "$SEED_RESPONSE" | jq .
+
+# Check if we actually seeded
+WAS_SEEDED=$(echo "$SEED_RESPONSE" | jq -r '.seeded')
+if [ "$WAS_SEEDED" = "true" ]; then
+  echo "⏳ Waiting for Electric SQL to sync seeded data..."
+  sleep 5
+else
+  echo "ℹ️  Database already seeded, continuing..."
+  sleep 1
+fi
 echo ""
-sleep 2
 
 # 1. Login first
 echo "1️⃣  Logging in..."
@@ -59,26 +68,36 @@ if [ -z "$WORKSPACE_ID" ] || [ "$WORKSPACE_ID" = "null" ]; then
   
   # Get company from company_members
   COMPANY_MEMBERS=$(curl -s "$API_URL/electric/shape?table=company_members")
+  echo "Company members response:"
+  echo "$COMPANY_MEMBERS" | jq .
   COMPANY_ID=$(echo "$COMPANY_MEMBERS" | jq -r 'if type == "array" then .[0].company_id else empty end')
   
   if [ -z "$COMPANY_ID" ] || [ "$COMPANY_ID" = "null" ]; then
     # Fallback: get from companies table
+    echo "Trying companies table..."
     COMPANIES=$(curl -s "$API_URL/electric/shape?table=companies")
+    echo "Companies response:"
+    echo "$COMPANIES" | jq .
     COMPANY_ID=$(echo "$COMPANIES" | jq -r 'if type == "array" then .[0].id else empty end')
   fi
   
-  echo "Using company ID: $COMPANY_ID"
+  if [ -z "$COMPANY_ID" ] || [ "$COMPANY_ID" = "null" ]; then
+    echo "❌ No company found. Cannot create workspace."
+    exit 1
+  fi
+  
+  echo "Using company ID for workspace creation: $COMPANY_ID"
   
   CREATE_WS_RESPONSE=$(curl -s -b /tmp/cookies.txt -X POST "$API_URL/workspaces" \
     -H "Content-Type: application/json" \
     -d "{
       \"name\": \"Test Workspace\",
-      \"slug\": \"test-workspace\",
+      \"companyId\": \"$COMPANY_ID\",
       \"description\": \"Test workspace for dynamic tables\",
       \"icon\": \"mdi:folder\"
     }")
   
-  echo "✅ Workspace created:"
+  echo "✅ Workspace creation response:"
   echo "$CREATE_WS_RESPONSE" | jq .
   WORKSPACE_ID=$(echo "$CREATE_WS_RESPONSE" | jq -r '.workspace.id')
   COMPANY_ID=$(echo "$CREATE_WS_RESPONSE" | jq -r '.workspace.companyId')
