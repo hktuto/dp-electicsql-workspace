@@ -18,16 +18,25 @@ export async function detectCapabilities(): Promise<EnvCapabilities> {
   // Check SharedWorker support
   const supportsSharedWorker = typeof SharedWorker !== 'undefined'
   
-  // Check OPFS (Origin Private File System) support
+  // Check OPFS (Origin Private File System) with sync access handles support
+  // PGlite OPFS AHP requires createSyncAccessHandle API, not just OPFS
   let supportsOPFS = false
   try {
     if ('storage' in navigator && 'getDirectory' in navigator.storage) {
-      // Try to access the directory to confirm it works
-      await navigator.storage.getDirectory()
-      supportsOPFS = true
+      const root = await navigator.storage.getDirectory()
+      // Test if sync access handles are available
+      const testFile = await root.getFileHandle('__opfs_test__', { create: true })
+      const accessHandle = await (testFile as any).createSyncAccessHandle()
+      
+      if (accessHandle) {
+        // Cleanup
+        accessHandle.close()
+        await root.removeEntry('__opfs_test__')
+        supportsOPFS = true
+      }
     }
   } catch (error) {
-    console.warn('[EnvDetect] OPFS not available:', error)
+    console.warn('[EnvDetect] OPFS sync access handles not available:', error)
     supportsOPFS = false
   }
   
