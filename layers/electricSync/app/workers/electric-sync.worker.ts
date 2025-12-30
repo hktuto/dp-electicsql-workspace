@@ -1,12 +1,15 @@
 /**
- * Electric Sync SharedWorker
+ * Electric Sync Worker
  * 
- * A SharedWorker that manages PGlite with Electric sync extension.
+ * A Worker (SharedWorker or dedicated) that manages PGlite with Electric sync extension.
+ * Supports both SharedWorker (multi-tab sync) and regular Worker (single-tab fallback).
+ * 
  * Benefits:
- * - Single database instance shared across all tabs
+ * - SharedWorker: Single database instance shared across all tabs
+ * - Regular Worker: Per-tab fallback for browsers without SharedWorker support
+ * - OPFS: Fast file-system based storage when available
+ * - IndexedDB: Universal fallback storage
  * - Single WebSocket connection to Electric
- * - Efficient memory usage
- * - Automatic cross-tab synchronization
  * - Background sync operations
  * - Change event broadcasting (insert/update/delete)
  * - Schema versioning with auto-clear on mismatch
@@ -14,6 +17,9 @@
 
 import { PGlite } from '@electric-sql/pglite'
 import { electricSync } from '@electric-sql/pglite-sync'
+
+// Worker context detection
+const isSharedWorker = 'onconnect' in self
 
 // ============================================
 // Types
@@ -61,12 +67,24 @@ interface SchemaVersionResponse {
 // Constants
 // ============================================
 
-const DB_NAME = 'idb://docpal-electric'
 const SCHEMA_VERSION_KEY = 'docpal_schema_version'
 
 // ============================================
 // State
 // ============================================
+
+interface Capabilities {
+  storageType: 'opfs' | 'indexeddb'
+  workerType: 'shared' | 'dedicated'
+}
+
+let capabilities: Capabilities = {
+  storageType: 'indexeddb', // Default fallback
+  workerType: isSharedWorker ? 'shared' : 'dedicated'
+}
+
+// DB name will be set based on storage type
+let DB_NAME = 'idb://docpal-electric' // Default to IndexedDB
 
 const state: WorkerState = {
   db: null,
@@ -76,6 +94,17 @@ const state: WorkerState = {
   error: null,
   activeShapes: new Map(),
   schemaVersion: null,
+}
+
+// For dedicated worker, treat self as the message target
+if (!isSharedWorker) {
+  // Add a pseudo-port for dedicated worker
+  const dedicatedPort = {
+    postMessage: (data: any) => {
+      (self as any).postMessage(data)
+    }
+  } as MessagePort
+  state.ports.add(dedicatedPort)
 }
 
 // ============================================
@@ -756,6 +785,23 @@ async function handleMessage(port: MessagePort, message: WorkerMessage): Promise
     let result: any
     
     switch (type) {
+      case 'SET_CAPABILITIES':
+        if (payload.capabilities) {
+          capabilities = payload.capabilities
+          // Update DB_NAME based on storage type
+          DB_NAME = capabilities.storageType === 'opfs' 
+            ? 'docpal-electric' // OPFS doesn't need prefix
+            : 'idb://docpal-electric' // IndexedDB needs idb:// prefix
+          
+          console.log('[Electric Worker] Capabilities set:', {
+            storageType: capabilities.storageType,
+            workerType: capabilities.workerType,
+            dbName: DB_NAME
+          })
+        }
+        result = { success: true, capabilities }
+        break
+        
       case 'INIT':
         await initDB()
         result = { success: true, schemaVersion: state.schemaVersion }
@@ -835,15 +881,7 @@ function broadcast(message: any): void {
 // Connection Handler
 // ============================================
 
-// @ts-ignore - SharedWorker global scope
-self.onconnect = (e: MessageEvent) => {
-  const port = e.ports?.[0]
-  
-  if (!port) {
-    console.error('[Electric Worker] No port in connect event')
-    return
-  }
-  
+function handlePortConnection(port: MessagePort) {
   state.ports.add(port)
   console.log('[Electric Worker] Tab connected. Total:', state.ports.size)
   
@@ -856,8 +894,6 @@ self.onconnect = (e: MessageEvent) => {
     state.ports.delete(port)
   }
   
-  port.start()
-  
   // Send initial status
   port.postMessage({
     type: 'CONNECTED',
@@ -867,12 +903,48 @@ self.onconnect = (e: MessageEvent) => {
     connectedTabs: state.ports.size,
     activeShapes: Array.from(state.activeShapes.keys()),
     schemaVersion: state.schemaVersion,
+    workerType: capabilities.workerType,
+    storageType: capabilities.storageType,
   })
-  
-  // Auto-initialize if not already
-  if (!state.db && !state.isInitializing) {
-    initDB().catch(console.error)
-  }
 }
 
-console.log('[Electric Worker] SharedWorker started')
+if (isSharedWorker) {
+  // SharedWorker mode: handle multiple connections
+  // @ts-ignore - SharedWorker global scope
+  self.onconnect = (e: MessageEvent) => {
+    const port = e.ports?.[0]
+    
+    if (!port) {
+      console.error('[Electric Worker] No port in connect event')
+      return
+    }
+    
+    port.start()
+    handlePortConnection(port)
+    
+    // Auto-initialize if not already
+    if (!state.db && !state.isInitializing) {
+      initDB().catch(console.error)
+    }
+  }
+  
+  console.log('[Electric Worker] SharedWorker started')
+} else {
+  // Dedicated Worker mode: handle direct messages
+  // @ts-ignore - Worker global scope
+  self.onmessage = (event: MessageEvent) => {
+    // Use the pseudo-port for dedicated worker
+    const port = Array.from(state.ports)[0]
+    if (port) {
+      handleMessage(port, event.data)
+    }
+  }
+  
+  // Send initial CONNECTED message
+  const port = Array.from(state.ports)[0]
+  if (port) {
+    handlePortConnection(port)
+  }
+  
+  console.log('[Electric Worker] Dedicated Worker started')
+}

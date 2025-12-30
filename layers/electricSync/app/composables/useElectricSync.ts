@@ -1,9 +1,17 @@
 /**
  * Electric SQL Sync Composable
  * 
- * Provides a reactive interface to the Electric SQL SharedWorker.
+ * Provides a reactive interface to the Electric SQL Worker.
+ * Supports both SharedWorker (multi-tab sync) and regular Worker (single-tab fallback).
  * Handles shape subscriptions, change events, and schema versioning.
  */
+
+import { detectCapabilities, type EnvCapabilities } from '../utils/envDetect'
+import { 
+  createSharedWorkerAdapter, 
+  createWorkerAdapter, 
+  type WorkerAdapter 
+} from '../utils/workerAdapter'
 
 interface ElectricStatus {
   isReady: boolean
@@ -12,6 +20,8 @@ interface ElectricStatus {
   connectedTabs: number
   activeShapes: string[]
   schemaVersion: string | null
+  workerType: 'shared' | 'dedicated' | null
+  storageType: 'opfs' | 'indexeddb' | null
 }
 
 interface DataChange {
@@ -36,7 +46,8 @@ interface PendingRequest {
 }
 
 // Singleton worker instance
-let worker: SharedWorker | null = null
+let workerAdapter: WorkerAdapter | null = null
+let capabilities: EnvCapabilities | null = null
 let messageId = 0
 const pendingRequests = new Map<number, PendingRequest>()
 
@@ -53,6 +64,8 @@ const useElectricStatus = () => useState<ElectricStatus>('electricStatus', () =>
   connectedTabs: 0,
   activeShapes: [],
   schemaVersion: null,
+  workerType: null,
+  storageType: null,
 }))
 
 export function useElectricSync() {
@@ -62,37 +75,58 @@ export function useElectricSync() {
   const isConnected = computed(() => workerConnected.value && status.value.isReady)
 
   // Initialize worker connection
-  const connect = () => {
-    if (worker) return
-
-    if (typeof SharedWorker === 'undefined') {
-      console.warn('[useElectricSync] SharedWorker not supported')
-      status.value.error = 'SharedWorker not supported'
-      return
-    }
+  const connect = async () => {
+    if (workerAdapter) return
 
     try {
-      worker = new SharedWorker(
-        new URL('../workers/electric-sync.worker.ts', import.meta.url),
-        { type: 'module', name: 'electric-sync' }
-      )
-
-      worker.port.onmessage = (event) => {
-        handleMessage(event.data)
+      // Detect browser capabilities
+      if (!capabilities) {
+        capabilities = await detectCapabilities()
+        status.value.workerType = capabilities.workerType
+        status.value.storageType = capabilities.storageType
       }
 
-      worker.port.onmessageerror = (event) => {
-        console.error('[useElectricSync] Message error:', event)
+      const workerURL = new URL('../workers/electric-sync.worker.ts', import.meta.url)
+
+      // Create appropriate worker type
+      if (capabilities.supportsSharedWorker) {
+        console.log('[useElectricSync] Using SharedWorker (multi-tab sync)')
+        const sharedWorker = new SharedWorker(workerURL, { 
+          type: 'module', 
+          name: 'electric-sync' 
+        })
+        sharedWorker.port.start()
+        workerAdapter = createSharedWorkerAdapter(sharedWorker)
+      } else {
+        console.log('[useElectricSync] Using Worker (single-tab, SharedWorker not supported)')
+        const dedicatedWorker = new Worker(workerURL, { type: 'module' })
+        workerAdapter = createWorkerAdapter(dedicatedWorker)
       }
 
-      worker.onerror = (event) => {
-        console.error('[useElectricSync] Worker error:', event)
-        status.value.error = event.message
-      }
+      // Set up message handlers
+      workerAdapter.onMessage((data) => {
+        handleMessage(data)
+      })
 
-      worker.port.start()
+      workerAdapter.onError((error) => {
+        console.error('[useElectricSync] Worker error:', error)
+        status.value.error = error.message || String(error)
+      })
+
+      // Send capabilities to worker
+      workerAdapter.postMessage({
+        type: 'SET_CAPABILITIES',
+        capabilities: {
+          storageType: capabilities.storageType,
+          workerType: capabilities.workerType
+        }
+      })
+
       workerConnected.value = true
-      console.log('[useElectricSync] Connected to SharedWorker')
+      console.log('[useElectricSync] Worker connected:', {
+        workerType: capabilities.workerType,
+        storageType: capabilities.storageType
+      })
     } catch (error) {
       console.error('[useElectricSync] Failed to create worker:', error)
       status.value.error = String(error)
@@ -185,14 +219,14 @@ export function useElectricSync() {
 
   // Send message to worker and wait for response
   const sendMessage = <T = any>(type: string, payload: Record<string, any> = {}): Promise<T> => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       // Auto-connect if not connected (lazy initialization)
-      if (!worker) {
-        connect()
+      if (!workerAdapter) {
+        await connect()
       }
       
       // Still not connected after trying
-      if (!worker) {
+      if (!workerAdapter) {
         reject(new Error('Worker not connected'))
         return
       }
@@ -200,7 +234,7 @@ export function useElectricSync() {
       const id = ++messageId
       pendingRequests.set(id, { resolve, reject })
 
-      worker.port.postMessage({ type, id, ...payload })
+      workerAdapter.postMessage({ type, id, ...payload })
 
       // Timeout after 30 seconds
       setTimeout(() => {
