@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { MenuItem } from '#shared/types/db'
-import type { MenuState, MenuContext } from '~/composables/useWorkspaceMenuContext'
-import { WorkspaceMenuContextKey } from '~/composables/useWorkspaceMenuContext'
 import { v4 as uuidv4 } from 'uuid'
+
+// Types from useWorkspaceMenuContext (auto-imported)
+import type { MenuState, MenuContext } from '#layers/workspace/app/composables/useWorkspaceMenuContext'
+import { WorkspaceMenuContextKey } from '#layers/workspace/app/composables/useWorkspaceMenuContext'
 
 interface Props {
   workspaceId: string

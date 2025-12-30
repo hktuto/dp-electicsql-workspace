@@ -79,14 +79,78 @@ See `docs/POPOVER_DIALOG_USAGE.md` and `docs/SMART_POPOVER_POSITIONING.md` for d
 
 ## Frontend Architecture
 
+### Nuxt Layers
+
+The project uses **Nuxt Layers** to organize features into self-contained modules.
+
+**Layer Structure:**
+```
+layers/
+├── electricSync/        # Core Electric SQL sync engine
+│   ├── app/
+│   │   ├── composables/
+│   │   │   └── useElectricSync.ts
+│   │   └── workers/
+│   │       └── electric-sync.worker.ts
+│   └── nuxt.config.ts
+│
+├── company/             # Company feature layer
+│   ├── app/
+│   │   ├── components/
+│   │   │   └── company/
+│   │   │       ├── Settings.global.vue  # Page component
+│   │   │       └── Switcher.vue         # Regular component
+│   │   └── composables/
+│   │       ├── useCompanyContext.ts
+│   │       ├── useCompanySync.ts
+│   │       └── useInviteSync.ts
+│   └── nuxt.config.ts
+│
+├── workspace/           # Workspace feature layer
+│   ├── app/
+│   │   ├── components/
+│   │   │   └── workspace/
+│   │   │       ├── Detail.global.vue    # Page component
+│   │   │       ├── List.global.vue      # Page component
+│   │   │       ├── Settings.global.vue  # Page component
+│   │   │       ├── listCard.vue         # Regular component
+│   │   │       └── menu/                # Sub-components
+│   │   └── composables/
+│   │       ├── useWorkspaceSync.ts
+│   │       └── useWorkspaceMenuContext.ts
+│   └── nuxt.config.ts
+│
+└── user/                # User feature layer
+    └── ...
+```
+
+**Layer Rules:**
+1. **Component Prefixes** - Components auto-import with folder path as prefix:
+   - `layers/workspace/app/components/workspace/Detail.global.vue` → `<WorkspaceDetail />`
+   - `layers/company/app/components/company/Switcher.vue` → `<CompanySwitcher />`
+
+2. **Page Components** - Must use `.global.vue` suffix OR be in a `global/` folder
+
+3. **Pages Stay in Main App** - All routes remain in `/app/pages/` for traceability
+
+4. **Import Patterns:**
+   - DB types: `import type { Workspace } from '#shared/types/db'`
+   - Layer-specific: `import { fn } from '#layers/workspace/app/composables/file'`
+
+5. **Feature-specific sync** - Each layer has its own sync composable:
+   - `electricSync` layer: `useElectricSync.ts` (core engine only)
+   - `company` layer: `useCompanySync.ts`, `useInviteSync.ts`
+   - `workspace` layer: `useWorkspaceSync.ts`
+   - `user` layer: `useUserSync.ts`
+
 ### Page/Component Pattern
 
 **All pages are just wrappers** - They convert route params to props and render the actual component.
 
 **Pattern:**
 ```
-/app/pages/[url].vue              <- Route wrapper (extracts params, passes as props)
-/app/components/global/[Name].vue <- Actual page component (receives props)
+/app/pages/[url].vue                              <- Route wrapper (extracts params)
+/layers/[layer]/app/components/[layer]/[Name].global.vue <- Actual page component
 ```
 
 **Why:** This architecture supports dual navigation modes:
@@ -105,12 +169,12 @@ const slug = route.params.slug as string
 </script>
 
 <template>
-  <CompanySetting :slug="slug" />
+  <CompanySettings :slug="slug" />
 </template>
 ```
 
 ```vue
-<!-- app/components/global/companySetting.vue - Actual Component -->
+<!-- layers/company/app/components/company/Settings.global.vue - Actual Component -->
 <script setup lang="ts">
 interface Props {
   slug: string
@@ -125,7 +189,7 @@ const props = defineProps<Props>()
 ```
 
 **Rules:**
-- **ALWAYS** create the actual component in `/app/components/global/` (or layer-specific global)
+- **ALWAYS** create page components with `.global.vue` suffix in the layer
 - **NEVER** put business logic in page files
 - Page files should ONLY:
   1. Extract route params

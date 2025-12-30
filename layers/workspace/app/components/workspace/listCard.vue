@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Workspace } from '~/composables/useWorkspaceSync'
+import type { Workspace } from '#shared/types/db'
 
 interface Props {
   workspace: Workspace

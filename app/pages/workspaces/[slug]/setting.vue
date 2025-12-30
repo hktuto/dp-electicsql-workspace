@@ -5,7 +5,7 @@ const slug = route.params.slug as string
 </script>
 
 <template>
-  <WorkspaceSetting :slug="slug" />
+  <WorkspaceSettings :slug="slug" />
 </template>
 
 <style scoped lang="scss">

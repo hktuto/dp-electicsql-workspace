@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { MenuItem } from '#shared/types/db'
-import { useWorkspaceMenuContext } from '~/composables/useWorkspaceMenuContext'
+import { useWorkspaceMenuContext } from '#layers/workspace/app/composables/useWorkspaceMenuContext'
 import draggable from 'vuedraggable'
 
 interface Props {

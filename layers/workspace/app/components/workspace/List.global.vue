@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Workspace } from '~/composables/useWorkspaceSync'
+import type { Workspace } from '#shared/types/db'
 import { useAutoAnimate } from '@formkit/auto-animate/vue'
 const { user } = useAuth()
 const router = useRouter()
