@@ -252,6 +252,18 @@ const deleteItem = async (id: string) => {
 const addItem = async (parentId: string | null, type: MenuItem['type']) => {
   if (!props.isAdmin) return
 
+  // For tables, open the creation dialog instead of adding directly
+  if (type === 'table') {
+    createTableForm.value = { name: '', description: '', icon: '' }
+    createTableParentId.value = parentId
+    
+    // We need a target element, use document.body as fallback
+    const target = document.activeElement as HTMLElement || document.body
+    createTableTarget.value = target
+    createTablePopover.value?.open(target)
+    return
+  }
+
   const newItem: MenuItem = {
     id: uuidv4(),
     label: `New ${type}`,
@@ -347,7 +359,9 @@ const addItemPopover = ref()
 const addItemTarget = ref<HTMLElement | null>(null)
 
 // Table creation dialog
-const showCreateTableDialog = ref(false)
+const createTablePopover = ref()
+const createTableTarget = ref<HTMLElement | null>(null)
+const createTableParentId = ref<string | null>(null)
 const createTableForm = ref({
   name: '',
   description: '',
@@ -360,16 +374,22 @@ function openAddMenu(event: MouseEvent) {
   addItemPopover.value?.open(addItemTarget.value)
 }
 
-async function handleAddItem(type: MenuItem['type']) {
+async function handleAddItem(type: MenuItem['type'], parentId: string | null = null) {
   addItemPopover.value?.close()
   
   if (type === 'table') {
     // Open table creation dialog
     createTableForm.value = { name: '', description: '', icon: '' }
-    showCreateTableDialog.value = true
+    createTableParentId.value = parentId
+    
+    // Open popover at the add button location
+    if (addItemTarget.value) {
+      createTableTarget.value = addItemTarget.value
+      createTablePopover.value?.open(addItemTarget.value)
+    }
   } else {
     // For other types (folder, view, dashboard), add directly
-    await menuContext.addItem(null, type)
+    await menuContext.addItem(parentId, type)
   }
 }
 
@@ -390,21 +410,39 @@ async function handleCreateTable() {
       },
     })
 
-    // Add to menu
+    // Create menu item with type 'table'
     const menuItem: MenuItem = {
       id: newTable.id,
       label: newTable.name,
       slug: newTable.slug,
-      type: 'table',
-      order: menuState.value.items.length,
+      type: 'table',  // Explicitly set type as 'table'
+      order: 0,
       icon: newTable.icon,
     }
 
-    menuState.value.items.push(menuItem)
+    // Add to menu (root or folder)
+    const parentId = createTableParentId.value
+    if (parentId) {
+      // Add to parent folder
+      const parent = findItemById(menuState.value.items, parentId)
+      if (parent && parent.type === 'folder') {
+        if (!parent.children) parent.children = []
+        menuItem.order = parent.children.length
+        parent.children.push(menuItem)
+        // Auto-expand parent
+        menuState.value.expandedFolders.add(parentId)
+      }
+    } else {
+      // Add to root
+      menuItem.order = menuState.value.items.length
+      menuState.value.items.push(menuItem)
+    }
+
+    // Save menu to server
     await saveMenuToServer(menuState.value.items)
 
-    // Close dialog
-    showCreateTableDialog.value = false
+    // Close popover
+    createTablePopover.value?.close()
 
     // Navigate to table
     ElMessage.success(`Table "${newTable.name}" created successfully`)
@@ -481,13 +519,13 @@ async function handleCreateTable() {
     </CommonPopoverDialog>
 
     <!-- Create Table Dialog -->
-    <el-dialog
-      v-model="showCreateTableDialog"
+    <CommonPopoverDialog
+      ref="createTablePopover"
+      placement="right-start"
+      :width="400"
       title="Create New Table"
-      width="500px"
-      :close-on-click-modal="false"
     >
-      <el-form label-position="top">
+      <el-form label-position="top" class="create-table-form">
         <el-form-item label="Table Name" required>
           <el-input
             v-model="createTableForm.name"
@@ -510,15 +548,15 @@ async function handleCreateTable() {
         <el-form-item label="Icon">
           <CommonIconPickerInput v-model="createTableForm.icon" />
         </el-form-item>
-      </el-form>
 
-      <template #footer>
-        <el-button @click="showCreateTableDialog = false">Cancel</el-button>
-        <el-button type="primary" @click="handleCreateTable">
-          Create Table
-        </el-button>
-      </template>
-    </el-dialog>
+        <div class="form-actions">
+          <el-button @click="createTablePopover?.close()">Cancel</el-button>
+          <el-button type="primary" @click="handleCreateTable">
+            Create Table
+          </el-button>
+        </div>
+      </el-form>
+    </CommonPopoverDialog>
   </div>
 </template>
 
@@ -592,5 +630,16 @@ async function handleCreateTable() {
   span {
     font-size: var(--app-font-size-s);
   }
+}
+
+.create-table-form {
+  padding: var(--app-space-m);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--app-space-s);
+  margin-top: var(--app-space-m);
 }
 </style>
