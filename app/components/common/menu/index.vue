@@ -1,140 +1,251 @@
 <template>
   <div :class="['menuContainer', mode, sidebarMode]">
-    <div class="menuItems">
-      <div class="header">
+    <!-- Header: Logo -->
+    <div class="menuHeader">
+      <NuxtLink to="/" class="logo-link" @click="$emit('closeMobile')">
+        <img 
+          v-if="sidebarMode === 'expand'" 
+          src="/logo-expand.svg" 
+          alt="DocPal" 
+          class="logo-expand"
+        />
+        <img 
+          v-else 
+          src="/logo.svg" 
+          alt="DocPal" 
+          class="logo-collapse"
+        />
+      </NuxtLink>
+    </div>
 
-      </div>
-      <div class="menuBody">
-
-        <div class="menuItem" v-for="item in menu" :key="item.id" :class="{ active: isActive(item) }" @click="handleClick(item)">
-          <template v-if="item.component">
-            <component :is="item.component" />
-          </template>
-          <template v-else>
-            <div class="menuItemIcon">
-              <Icon v-if="item.icon" :name="item.icon" />
+    <!-- Body: Menu Items -->
+    <div class="menuBody">
+      <div 
+        v-for="item in menu" 
+        :key="item.id" 
+        :class="['menuItem', { active: isActive(item) }]" 
+        @click="handleClick(item)"
+      >
+        <template v-if="item.component">
+          <component :is="item.component" />
+        </template>
+        <template v-else>
+          <div class="menuItemIcon">
+            <Icon v-if="item.icon" :name="item.icon" />
+          </div>
+          <Transition name="label-fade">
+            <div v-if="sidebarMode === 'expand'" class="menuItemLabel">
+              {{ item.label }}
             </div>
-            <div v-if="item.label && sidebarMode === 'expand'" class="menuItemLabel" >{{ item.label }}</div>
-          </template>
-        </div>
+          </Transition>
+        </template>
       </div>
-      <div class="footer">
-       
-        <UserProfileMenu :collapse="sidebarMode === 'collapse'" />
-        <div class="menuItem" @click="toggleSidebarMode">
-          <Icon :name="sidebarMode === 'collapse' ? 'material-symbols:arrow-forward' : 'material-symbols:arrow-back'" />
-        </div>
+    </div>
+
+    <!-- Footer: User Profile & Toggle -->
+    <div class="menuFooter">
+      <UserProfileMenu :collapse="sidebarMode === 'collapse'" />
+      <div class="menuItem toggle-btn" @click="toggleSidebarMode">
+        <Icon 
+          :name="sidebarMode === 'collapse' 
+            ? 'material-symbols:keyboard-double-arrow-right' 
+            : 'material-symbols:keyboard-double-arrow-left'" 
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  const sidebarMode = defineModel< 'collapse' | 'expand'>('collapse')
-  const props = defineProps<{
-    mode : 'sidebar' | 'dock'
-  }>()
-  const { currentPath, navigate } = useAppRouter()
-  type MenuItem = {
-    id: string,
-    label: string,
-    url?:string,
-    icon?:string,
-    urlRule?: string, // regex to match the current path
-    component?:string,
-    action?:() => void,
-  }
-  const menu = ref<MenuItem[]>([
-    {
-      id: 'home',
-      label: 'Home',
-      url: '/',
-      icon: 'material-symbols:home',
-    },
-    {
-      id: 'workspaces',
-      label: 'Workspaces',
-      url: '/workspaces',
-      icon: 'material-symbols:workspaces',
-    },
-    {
-      id: 'chats',
-      label: 'Chats',
-      url: '/chats',
-      icon: 'material-symbols:chat',
-    },
-  ])
-  function isActive(item: MenuItem)  {
-    if(item.urlRule) {
-      return new RegExp(item.urlRule).test(currentPath.value)
-    }
-    return item.url === currentPath.value
-  }
-  
-  function toggleSidebarMode() {
-    sidebarMode.value = sidebarMode.value === 'collapse' ? 'expand' : 'collapse'
-  }
-  
+const sidebarMode = defineModel<'collapse' | 'expand'>('sidebarMode')
 
-  function handleClick(item: MenuItem) {
-    if(item.action) {
-      item.action()
-    } else if(item.url) {
-      navigate(item.url!)
-    } else {
-      console.warn('No url or action for menu item', item)
-    }
+const props = defineProps<{
+  mode: 'sidebar' | 'dock'
+}>()
+
+const emit = defineEmits<{
+  closeMobile: []
+}>()
+
+const { currentPath, navigate } = useAppRouter()
+
+type MenuItem = {
+  id: string
+  label: string
+  url?: string
+  icon?: string
+  urlRule?: string
+  component?: string
+  action?: () => void
+}
+
+const menu = ref<MenuItem[]>([
+  {
+    id: 'home',
+    label: 'Home',
+    url: '/',
+    icon: 'material-symbols:home-rounded',
+  },
+  {
+    id: 'workspaces',
+    label: 'Workspaces',
+    url: '/workspaces',
+    urlRule: '^/workspaces',
+    icon: 'material-symbols:workspaces-rounded',
+  },
+  {
+    id: 'chats',
+    label: 'Chats',
+    url: '/chats',
+    icon: 'material-symbols:chat-rounded',
+  },
+])
+
+function isActive(item: MenuItem) {
+  if (item.urlRule) {
+    return new RegExp(item.urlRule).test(currentPath.value)
   }
+  return item.url === currentPath.value
+}
+
+function toggleSidebarMode() {
+  sidebarMode.value = sidebarMode.value === 'collapse' ? 'expand' : 'collapse'
+}
+
+function handleClick(item: MenuItem) {
+  if (item.action) {
+    item.action()
+  } else if (item.url) {
+    navigate(item.url)
+    emit('closeMobile')
+  } else {
+    console.warn('No url or action for menu item', item)
+  }
+}
 </script>
 
 <style scoped lang="scss">
-.menuContainer{
-  
-  &.sidebar{
+.menuContainer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--app-bg-color);
+  transition: width 0.2s ease;
+
+  &.sidebar {
     width: 200px;
-    height: 100dvh;
-    display: flex;
-    flex-flow: column nowrap;
-    align-items: center;
-    justify-content: flex-start;
-    gap: var(--app-space-s);
-    background-color: var(--app-bg-color);
-    border-right: 1px solid var(--app-border-color);
-    &.collapse{
+
+    &.collapse {
       width: 60px;
-    }
-    .menuItems{
-      height: 100%;;
-      display: flex;
-      flex-flow: column nowrap;
-      align-items: flex-start;
-      justify-content: flex-start;
-      gap: var(--app-space-s);
-      padding: var(--app-space-s);
-      .menuBody{
-        flex: 1 0 auto;
-        display: flex;
-        flex-flow: column nowrap;
-        align-items: flex-start;
-        justify-content: flex-start;
-        gap: var(--app-space-s);
-      }
     }
   }
 }
-.menuItem{
-  color: var(--app-grey-400);
-  font-size: var(--app-font-size-m);
+
+// Header with logo
+.menuHeader {
+  padding: var(--app-space-m) var(--app-space-s);
   display: flex;
-  flex-flow: row nowrap;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--app-border-color);
+  min-height: 60px;
+}
+
+.logo-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.logo-expand {
+  height: 32px;
+  width: auto;
+}
+
+.logo-collapse {
+  height: 32px;
+  width: 32px;
+}
+
+// Menu body
+.menuBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-xxs);
+  padding: var(--app-space-s);
+  overflow-y: auto;
+}
+
+// Menu footer
+.menuFooter {
+  padding: var(--app-space-s);
+  border-top: 1px solid var(--app-border-color);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-xxs);
+}
+
+// Menu item styles
+.menuItem {
+  display: flex;
   align-items: center;
   gap: var(--app-space-s);
+  padding: var(--app-space-s);
+  border-radius: var(--app-border-radius-s);
+  color: var(--app-grey-400);
+  font-size: var(--app-font-size-m);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+
   &:hover {
-    color: var(--app-primary-alpha-70);
+    color: var(--app-primary-color);
+    background: var(--app-primary-alpha-10);
   }
+
   &.active {
     color: var(--app-primary-color);
+    background: var(--app-primary-alpha-10);
+    font-weight: 500;
   }
+
+  .menuItemIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    font-size: 20px;
+  }
+
+  .menuItemLabel {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.toggle-btn {
+  justify-content: center;
+  
+  .collapse & {
+    padding: var(--app-space-s) 0;
+  }
+}
+
+// Label fade transition
+.label-fade-enter-active,
+.label-fade-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.label-fade-enter-from,
+.label-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-8px);
 }
 </style>

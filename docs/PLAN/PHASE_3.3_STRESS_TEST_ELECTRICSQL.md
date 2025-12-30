@@ -1,4 +1,4 @@
-# Phase 3.1: Stress Test ElectricSQL
+# Phase 3.3: Stress Test ElectricSQL
 
 ## Goals
 
