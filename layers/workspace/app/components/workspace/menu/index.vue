@@ -236,8 +236,70 @@ const cancelEdit = () => {
   menuState.value.editingItemId = null
 }
 
+// Helper: Get all table IDs recursively
+function getAllTableIds(items: MenuItem[]): string[] {
+  const tableIds: string[] = []
+  for (const item of items) {
+    if (item.type === 'table') {
+      tableIds.push(item.id)
+    }
+    if (item.children) {
+      tableIds.push(...getAllTableIds(item.children))
+    }
+  }
+  return tableIds
+}
+
 const deleteItem = async (id: string) => {
   if (!props.isAdmin) return
+
+  // Find the item to check its type
+  const item = findItemById(menuState.value.items, id)
+  if (!item) return
+
+  // If it's a table, delete the physical table via API
+  if (item.type === 'table') {
+    try {
+      await $fetch(`/api/workspaces/${props.workspaceId}/tables/${id}`, {
+        method: 'DELETE',
+      })
+      ElMessage.success(`Table "${item.label}" deleted successfully`)
+    } catch (error: any) {
+      console.error('Failed to delete table:', error)
+      ElMessage.error(error.data?.message || 'Failed to delete table')
+      return // Don't remove from menu if API call failed
+    }
+  }
+  
+  // If it's a folder, delete all tables inside recursively
+  if (item.type === 'folder' && item.children) {
+    const tableIds = getAllTableIds(item.children)
+    for (const tableId of tableIds) {
+      try {
+        await $fetch(`/api/workspaces/${props.workspaceId}/tables/${tableId}`, {
+          method: 'DELETE',
+        })
+      } catch (error: any) {
+        console.error(`Failed to delete table ${tableId}:`, error)
+        ElMessage.error(`Failed to delete some tables in folder "${item.label}"`)
+        return // Don't remove from menu if any API call failed
+      }
+    }
+    if (tableIds.length > 0) {
+      ElMessage.success(`Deleted ${tableIds.length} table(s) from folder "${item.label}"`)
+    }
+  }
+
+  // Navigate away if user is currently viewing the deleted item (use slug)
+  const currentPath = router.currentRoute.value.path
+  if (item.slug && (
+      currentPath.includes(`/tables/${item.slug}`) || 
+      currentPath.includes(`/view/${item.slug}`) || 
+      currentPath.includes(`/folder/${item.slug}`) || 
+      currentPath.includes(`/dashboard/${item.slug}`)
+    )) {
+    router.push(`/workspaces/${props.workspaceSlug}`)
+  }
 
   // Remove from local state
   menuState.value.items = removeItemById(menuState.value.items, id)

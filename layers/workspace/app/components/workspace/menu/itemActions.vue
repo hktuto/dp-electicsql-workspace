@@ -26,15 +26,23 @@ async function handleEdit() {
 }
 
 async function handleDelete() {
-  ElMessageBox.confirm(
-    `Are you sure you want to delete "${props.item.label}"?`,
-    'Delete Item',
-    {
-      confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel',
-      type: 'warning',
-    }
-  ).then(async () => {
+  // Customize message based on item type
+  let message = `Are you sure you want to delete "${props.item.label}"?`
+  let confirmText = 'Delete'
+  
+  if (props.item.type === 'table') {
+    message = `Are you sure you want to delete the table "${props.item.label}"?\n\nThis will permanently delete:\n• The physical database table\n• All columns\n• All data records\n\nThis action cannot be undone.`
+    confirmText = 'Delete Table'
+  } else if (props.item.type === 'folder' && props.item.children && props.item.children.length > 0) {
+    message = `Are you sure you want to delete the folder "${props.item.label}" and all its contents?`
+  }
+  
+  ElMessageBox.confirm(message, 'Delete Item', {
+    confirmButtonText: confirmText,
+    cancelButtonText: 'Cancel',
+    type: 'warning',
+    dangerouslyUseHTMLString: true,
+  }).then(async () => {
     await menuContext.deleteItem(props.item.id)
     close()
   }).catch(() => {
