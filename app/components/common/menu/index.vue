@@ -1,6 +1,6 @@
 <template>
-  <div :class="['menuContainer', mode, sidebarMode]">
-    <!-- Header: Logo -->
+  <div :class="['menuContainer', mode, sidebarMode, { mobile: isMobile }]">
+    <!-- Header: Logo + Close button on mobile -->
     <div class="menuHeader">
       <NuxtLink to="/" class="logo-link" @click="$emit('closeMobile')">
         <img 
@@ -16,6 +16,11 @@
           class="logo-collapse"
         />
       </NuxtLink>
+      
+      <!-- Close button for mobile -->
+      <button v-if="isMobile" class="mobile-close-btn" @click="$emit('closeMobile')">
+        <Icon name="material-symbols:close" />
+      </button>
     </div>
 
     <!-- Body: Menu Items -->
@@ -42,10 +47,10 @@
       </div>
     </div>
 
-    <!-- Footer: User Profile & Toggle -->
+    <!-- Footer: User Profile & Toggle (toggle hidden on mobile) -->
     <div class="menuFooter">
       <UserProfileMenu :collapse="sidebarMode === 'collapse'" />
-      <div class="menuItem toggle-btn" @click="toggleSidebarMode">
+      <div v-if="!isMobile" class="menuItem toggle-btn" @click="toggleSidebarMode">
         <Icon 
           :name="sidebarMode === 'collapse' 
             ? 'material-symbols:keyboard-double-arrow-right' 
@@ -61,6 +66,7 @@ const sidebarMode = defineModel<'collapse' | 'expand'>('sidebarMode')
 
 const props = defineProps<{
   mode: 'sidebar' | 'dock'
+  isMobile?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -139,6 +145,11 @@ function handleClick(item: MenuItem) {
       width: 60px;
     }
   }
+
+  // Mobile always expanded
+  &.mobile {
+    width: 240px;
+  }
 }
 
 // Header with logo
@@ -149,6 +160,7 @@ function handleClick(item: MenuItem) {
   justify-content: center;
   border-bottom: 1px solid var(--app-border-color);
   min-height: 60px;
+  position: relative;
 }
 
 .logo-link {
@@ -166,6 +178,31 @@ function handleClick(item: MenuItem) {
 .logo-collapse {
   height: 32px;
   width: 32px;
+}
+
+// Mobile close button
+.mobile-close-btn {
+  position: absolute;
+  right: var(--app-space-s);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--app-text-color-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--app-border-radius-s);
+  font-size: 20px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--app-fill-color);
+    color: var(--app-text-color-primary);
+  }
 }
 
 // Menu body

@@ -1,12 +1,12 @@
 <template>
-  <div :class="['pageWrapper', mode]">
-    <!-- Mobile Menu Toggle (only visible on mobile) -->
+  <div ref="wrapperRef" :class="['pageWrapper', mode, { 'mobile-view': isMobile }]">
+    <!-- Mobile Menu Toggle (floating button) -->
     <button 
-      v-if="mode === 'sidebar'" 
+      v-if="mode === 'sidebar' && isMobile && !isMobileMenuOpen" 
       class="mobile-menu-toggle"
       @click="toggleMobileMenu"
     >
-      <Icon :name="isMobileMenuOpen ? 'material-symbols:close' : 'material-symbols:menu'" />
+      <Icon name="material-symbols:menu" />
     </button>
 
     <!-- Overlay for mobile menu -->
@@ -19,18 +19,14 @@
     </Transition>
 
     <!-- Main Menu -->
-    <Transition name="slide">
-      <aside 
-        v-show="mode === 'dock' || !isMobile || isMobileMenuOpen"
-        :class="['main-menu', { 'mobile-open': isMobileMenuOpen }]"
-      >
-        <CommonMenu 
-          :mode="mode" 
-          v-model:sidebar-mode="sidebarMode"
-          @close-mobile="isMobileMenuOpen = false"
-        />
-      </aside>
-    </Transition>
+    <aside :class="['main-menu', { open: isMobileMenuOpen }]">
+      <CommonMenu 
+        :mode="mode" 
+        :is-mobile="isMobile"
+        v-model:sidebar-mode="actualSidebarMode"
+        @close-mobile="isMobileMenuOpen = false"
+      />
+    </aside>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -43,29 +39,51 @@
 const mode = useState<'sidebar' | 'dock'>('mode', () => 'sidebar')
 const sidebarMode = useState<'collapse' | 'expand'>('sidebarMode', () => 'collapse')
 
-// Mobile menu state
-const isMobileMenuOpen = ref(false)
+// Mobile state
+const wrapperRef = ref<HTMLElement | null>(null)
 const isMobile = ref(false)
+const isMobileMenuOpen = ref(false)
+let resizeObserver: ResizeObserver | null = null
 
-// Check if mobile using container query fallback
-function checkMobile() {
-  isMobile.value = window.innerWidth < 768
-  if (!isMobile.value) {
-    isMobileMenuOpen.value = false
-  }
-}
+// Force expand mode on mobile
+const actualSidebarMode = computed({
+  get: () => isMobile.value ? 'expand' : sidebarMode.value,
+  set: (val) => { sidebarMode.value = val }
+})
 
 function toggleMobileMenu() {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
 }
 
 onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
+  // Initial check
+  if (wrapperRef.value) {
+    isMobile.value = wrapperRef.value.clientWidth < 768
+  }
+
+  // Set up ResizeObserver
+  nextTick(() => {
+    if (wrapperRef.value) {
+      resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const wasMobile = isMobile.value
+          isMobile.value = entry.contentRect.width < 768
+          // Close menu when switching to desktop
+          if (wasMobile && !isMobile.value) {
+            isMobileMenuOpen.value = false
+          }
+        }
+      })
+      resizeObserver.observe(wrapperRef.value)
+    }
+  })
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 
 // Close mobile menu on route change
@@ -82,8 +100,7 @@ watch(() => route.path, () => {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  container-name: pageWrapper;
-  container-type: inline-size;
+  transform: translateZ(0); // Create stacking context
 
   &.sidebar {
     display: grid;
@@ -94,15 +111,43 @@ watch(() => route.path, () => {
   &.dock {
     display: block;
   }
+
+  // Mobile view styles
+  &.mobile-view {
+    &.sidebar {
+      grid-template-columns: 1fr;
+    }
+
+    .mobile-menu-toggle {
+      display: flex;
+    }
+
+    .menu-overlay {
+      display: block;
+    }
+
+    .main-menu {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      transform: translateX(-100%);
+      box-shadow: var(--app-shadow-xl);
+
+      &.open {
+        transform: translateX(0);
+      }
+    }
+  }
 }
 
 // Mobile menu toggle button
 .mobile-menu-toggle {
   display: none;
-  position: fixed;
+  position: absolute;
   bottom: var(--app-space-m);
   left: var(--app-space-m);
-  z-index: 1001;
+  z-index: 101;
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -129,52 +174,26 @@ watch(() => route.path, () => {
 // Menu overlay for mobile
 .menu-overlay {
   display: none;
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 999;
+  z-index: 99;
   backdrop-filter: blur(2px);
 }
 
 // Main menu aside
 .main-menu {
-  height: 100dvh;
+  height: 100%;
   background: var(--app-bg-color);
   border-right: 1px solid var(--app-border-color);
-  z-index: 1000;
+  z-index: 100;
   transition: transform 0.3s ease;
 }
 
 // Main content area
 .main-content {
-  height: 100dvh;
+  height: 100%;
   overflow: auto;
-}
-
-// Container query for responsive behavior
-@container pageWrapper (max-width: 768px) {
-  .mobile-menu-toggle {
-    display: flex;
-  }
-
-  .menu-overlay {
-    display: block;
-  }
-
-  .main-menu {
-    position: fixed;
-    left: 0;
-    top: 0;
-    transform: translateX(-100%);
-
-    &.mobile-open {
-      transform: translateX(0);
-    }
-  }
-
-  .pageWrapper.sidebar {
-    grid-template-columns: 1fr;
-  }
 }
 
 // Transitions
@@ -186,15 +205,5 @@ watch(() => route.path, () => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-.slide-enter-active,
-.slide-leave-active {
-  transition: transform 0.3s ease;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-  transform: translateX(-100%);
 }
 </style>
