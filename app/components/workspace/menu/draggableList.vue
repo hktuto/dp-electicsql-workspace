@@ -4,116 +4,88 @@ import { useWorkspaceMenuContext } from '~/composables/useWorkspaceMenuContext'
 import draggable from 'vuedraggable'
 
 interface Props {
-  items: MenuItem[]
-  level: number
-  isRoot?: boolean
+  modelValue: MenuItem[]
+  level?: number
   parentId?: string | null
   isAdmin?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  level: 0,
+  parentId: null,
   isAdmin: true,
-  isRoot: false,
 })
+
+const emit = defineEmits<{
+  'update:modelValue': [items: MenuItem[]]
+}>()
 
 const menuContext = useWorkspaceMenuContext()
 
-// Local reactive copy for draggable
-// const localItems = ref<MenuItem[]>([...props.items])
+// Local copy that vuedraggable can mutate
+const localItems = ref<MenuItem[]>([...props.modelValue])
 
-// Watch for external changes (from parent/context)
-// But skip if we're dragging - let vuedraggable handle it
+// Track if we're syncing from props to prevent emit loop
+const isSyncingFromProps = ref(false)
 
-const emit = defineEmits<{
-  (e: 'items-change'): void
-}>()
-// watch(localItems, (newItems, oldItems) => {
-//   console.log('localItems on watch', props.isRoot, props.level)
-//   if(props.isRoot) {
-//     console.log('localItems is on root', newItems, oldItems)
-//     // menuContext.state.value.items = [...localItems.value]
-//     // await menuContext.updateMenu(menuContext.state.value.items)
-//   }else{
-//     emit('items-change')
-//   }
-// }, { deep: true })
+// Helper to compare arrays
+function areItemsEqual(a: MenuItem[], b: MenuItem[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
 
-function handleItemsChange() {
-  console.log('items change', props.level,)
-  if(props.isRoot) {
-    console.log('items change is on root', props.items)
-
-    // menuContext.state.value.items = [...localItems.value]
-    // await menuContext.updateMenu(menuContext.state.value.items)
-  }else{
-    emit('items-change')
+// Sync from parent when props change (but not during drag)
+watch(() => props.modelValue, (newItems) => {
+  if (menuContext.state.value.isDragging) {
+    return
   }
-}
-
-// Handle drag end - vuedraggable already updated localItems
-// We just need to sync this change back to the menu context
-async function handleDragEnd(event: any) {
-  menuContext.state.value.isDragging = false
   
-  // Wait a tick to ensure all localItems are updated
-  await nextTick()
-  
-  // Now collect the entire menu structure by reading from all lists
-  // vuedraggable has already updated all localItems correctly
-  // We just need to update the menu context with the current localItems
-  // updateMenuContext()
-  
-  // Save to server
-  // await menuContext.updateMenu(menuContext.state.value.items)
-}
-
-// Update the menu context with current localItems
-// This syncs the current list back to the parent context
-function updateMenuContext() {
-  if (props.parentId === null) {
-    // We're at root level - update root items
-    menuContext.state.value.items = [...localItems.value]
-  } else {
-    // We're in a folder - find parent and update its children
-    const updateParentChildren = (items: MenuItem[]): MenuItem[] => {
-      return items.map(item => {
-        if (item.id === props.parentId && item.type === 'folder') {
-          // Found the parent - update its children
-          return {
-            ...item,
-            children: [...localItems.value],
-          }
-        }
-        if (item.children) {
-          // Keep looking in children
-          return {
-            ...item,
-            children: updateParentChildren(item.children),
-          }
-        }
-        return item
-      })
-    }
-    
-    menuContext.state.value.items = updateParentChildren(menuContext.state.value.items)
+  // Skip if items are the same (prevents unnecessary updates)
+  if (areItemsEqual(localItems.value, newItems)) {
+    return
   }
-}
+  
+  isSyncingFromProps.value = true
+  localItems.value = [...newItems]
+  nextTick(() => {
+    isSyncingFromProps.value = false
+  })
+}, { deep: true })
+
+// Emit changes when local items change (but not when syncing from props)
+watch(localItems, (newItems) => {
+  // Skip emit if we're just syncing from props
+  if (isSyncingFromProps.value) {
+    return
+  }
+  
+  // Skip if items are the same as props (no real change)
+  if (areItemsEqual(newItems, props.modelValue)) {
+    return
+  }
+  
+  emit('update:modelValue', [...newItems])
+}, { deep: true })
 
 // Handle drag start
 function handleDragStart() {
   menuContext.state.value.isDragging = true
 }
 
-// Helper to find item by id
-function findItemById(items: MenuItem[], id: string): MenuItem | null {
-  for (const item of items) {
-    if (item.id === id) return item
-    if (item.children) {
-      const found = findItemById(item.children, id)
-      if (found) return found
-    }
+// Handle drag end
+function handleDragEnd() {
+  menuContext.state.value.isDragging = false
+}
+
+// Handle child folder items change (v-model from nested list)
+function handleChildUpdate(folderId: string, newChildren: MenuItem[]) {
+  const index = localItems.value.findIndex(item => item.id === folderId)
+  if (index !== -1) {
+    const item = localItems.value[index]
+    localItems.value[index] = {
+      ...item,
+      children: newChildren,
+    } as MenuItem
   }
-  return null
 }
 
 // Check if folder is expanded
@@ -123,9 +95,8 @@ function isExpanded(itemId: string): boolean {
 </script>
 
 <template>
-  {{ items }}
   <draggable
-    :list="items"
+    v-model="localItems"
     :disabled="!isAdmin"
     item-key="id"
     class="draggable-list"
@@ -138,7 +109,7 @@ function isExpanded(itemId: string): boolean {
     @start="handleDragStart"
     @end="handleDragEnd"
   >
-    <template #item="{ element }">
+    <template #item="{ element, index }">
       <div class="draggable-item">
         <!-- Menu Item -->
         <WorkspaceMenuItem
@@ -148,15 +119,15 @@ function isExpanded(itemId: string): boolean {
 
         <!-- Nested Children (if folder and expanded) -->
         <div
-          v-if="element.type === 'folder' && element.children && isExpanded(element.id)"
+          v-if="element.type === 'folder' && isExpanded(element.id)"
           class="nested-children"
         >
           <WorkspaceMenuDraggableList
-            :items="element.children"
+            :model-value="element.children || []"
             :level="level + 1"
             :parent-id="element.id"
             :is-admin="isAdmin"
-            @items-change="handleItemsChange"
+            @update:model-value="(children) => handleChildUpdate(element.id, children)"
           />
         </div>
       </div>
@@ -193,18 +164,4 @@ function isExpanded(itemId: string): boolean {
   opacity: 0.8;
   transform: rotate(2deg);
 }
-
-// Level-based indentation (for non-nested items)
-.level-0 {
-  // Root level
-}
-
-.level-1 {
-  // First nested level
-}
-
-.level-2 {
-  // Second nested level
-}
 </style>
-

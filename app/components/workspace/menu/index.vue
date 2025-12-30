@@ -39,15 +39,92 @@ function areMenuItemsEqual(a: MenuItem[], b: MenuItem[]): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
 }
 
+// Debounced save to avoid too many API calls during drag
+const saveTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+const isSaving = ref(false)
+const pendingSave = ref(false)
+
+// Track what we last saved to avoid infinite loop with Electric sync
+const lastSavedHash = ref<string | null>(null)
+
+function getMenuHash(menu: MenuItem[]): string {
+  return JSON.stringify(menu)
+}
+
+async function debouncedSave(menu: MenuItem[]) {
+  // Clear any pending save
+  if (saveTimeout.value) {
+    clearTimeout(saveTimeout.value)
+  }
+  
+  // If currently saving, mark as pending
+  if (isSaving.value) {
+    pendingSave.value = true
+    return
+  }
+  
+  // Skip if nothing changed from last save
+  const currentHash = getMenuHash(menu)
+  if (currentHash === lastSavedHash.value) {
+    console.log('[Menu] Skip save - no changes from last save')
+    return
+  }
+  
+  // Debounce for 300ms
+  saveTimeout.value = setTimeout(async () => {
+    isSaving.value = true
+    try {
+      // Store hash BEFORE saving so we can ignore the Electric sync echo
+      lastSavedHash.value = getMenuHash(menu)
+      
+      await saveMenuToServer(menu)
+      console.log('[Menu] Saved to server')
+      
+      // If there was a pending save, save again
+      if (pendingSave.value) {
+        pendingSave.value = false
+        const latestHash = getMenuHash(menuState.value.items)
+        if (latestHash !== lastSavedHash.value) {
+          lastSavedHash.value = latestHash
+          await saveMenuToServer(menuState.value.items)
+        }
+      }
+    } finally {
+      isSaving.value = false
+    }
+  }, 300)
+}
+
+// Watch for drag changes and save
+watch(() => menuState.value.items, (newMenu) => {
+  // Only auto-save if we're not receiving external updates
+  if (!menuState.value.isDragging) return
+  
+  console.log('[Menu] Items changed during drag, will save...')
+}, { deep: true })
+
 // Watch for external menu updates (from Electric SQL sync)
 watch(() => props.initialMenu, (newMenu, oldMenu) => {
-  // Skip update if menu hasn't actually changed
+  // Skip update if we're dragging
+  if (menuState.value.isDragging) {
+    console.log('[Menu] Skipping external update during drag')
+    return
+  }
+  
+  // Skip update if menu hasn't actually changed from our local state
   if (areMenuItemsEqual(menuState.value.items, newMenu)) {
     console.log('[Menu] No changes detected, skipping update')
     return
   }
   
-  console.log('[Menu] Changes detected, updating menu')
+  // Skip update if this is just an echo of what we saved
+  const newMenuHash = getMenuHash(newMenu)
+  if (newMenuHash === lastSavedHash.value) {
+    console.log('[Menu] Skipping echo of our own save')
+    return
+  }
+  
+  console.log('[Menu] External changes detected, updating menu')
   
   // Preserve expanded state when updating
   const previousExpandedFolders = new Set(menuState.value.expandedFolders)
@@ -211,6 +288,18 @@ const updateMenu = async (newMenu: MenuItem[]) => {
   await saveMenuToServer(orderedMenu)
 }
 
+// Handle menu changes from draggable list (v-model update)
+async function handleMenuChange(newItems: MenuItem[]) {
+  console.log('[Menu] Menu changed from drag:', newItems.length, 'items')
+  
+  // Update order numbers
+  const orderedMenu = updateOrderNumbers(newItems)
+  menuState.value.items = orderedMenu
+  
+  // Debounced save to server
+  debouncedSave(orderedMenu)
+}
+
 // Create context object
 const menuContext: MenuContext = {
   state: menuState,
@@ -270,10 +359,11 @@ async function handleAddItem(type: MenuItem['type']) {
 
       <WorkspaceMenuDraggableList
         v-else
-        :items="menuContext.state.value.items"
+        v-model="menuState.items"
         :level="0"
-        isRoot
         :parent-id="null"
+        :is-admin="isAdmin"
+        @update:model-value="handleMenuChange"
       />
     </div>
 
