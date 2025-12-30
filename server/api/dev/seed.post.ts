@@ -12,6 +12,7 @@ import { generateUUID } from '~~/server/utils/uuid'
  */
 export default defineEventHandler(async () => {
   // Check if super admin already exists
+  console.log("start seeding")
   const existingAdmin = await db
     .select()
     .from(users)

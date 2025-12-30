@@ -79,8 +79,27 @@ const state: WorkerState = {
 }
 
 // ============================================
-// Schema Version Management
+// Schema Version Management (using IndexedDB since SharedWorker has no localStorage)
 // ============================================
+
+const SCHEMA_VERSION_DB_NAME = 'docpal-meta'
+const SCHEMA_VERSION_STORE_NAME = 'schema-version'
+
+async function openMetaDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(SCHEMA_VERSION_DB_NAME, 1)
+    
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => resolve(request.result)
+    
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result
+      if (!db.objectStoreNames.contains(SCHEMA_VERSION_STORE_NAME)) {
+        db.createObjectStore(SCHEMA_VERSION_STORE_NAME)
+      }
+    }
+  })
+}
 
 async function fetchSchemaVersion(): Promise<SchemaVersionResponse | null> {
   try {
@@ -96,71 +115,147 @@ async function fetchSchemaVersion(): Promise<SchemaVersionResponse | null> {
   }
 }
 
-function getLocalSchemaVersion(): string | null {
+async function getLocalSchemaVersion(): Promise<string | null> {
   try {
-    return localStorage.getItem(SCHEMA_VERSION_KEY)
-  } catch {
+    const db = await openMetaDB()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SCHEMA_VERSION_STORE_NAME, 'readonly')
+      const store = tx.objectStore(SCHEMA_VERSION_STORE_NAME)
+      const request = store.get(SCHEMA_VERSION_KEY)
+      
+      request.onerror = () => {
+        db.close()
+        reject(request.error)
+      }
+      request.onsuccess = () => {
+        db.close()
+        resolve(request.result || null)
+      }
+    })
+  } catch (error) {
+    console.warn('[Electric Worker] Failed to get schema version:', error)
     return null
   }
 }
 
-function setLocalSchemaVersion(version: string): void {
+async function setLocalSchemaVersion(version: string): Promise<void> {
   try {
-    localStorage.setItem(SCHEMA_VERSION_KEY, version)
+    const db = await openMetaDB()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SCHEMA_VERSION_STORE_NAME, 'readwrite')
+      const store = tx.objectStore(SCHEMA_VERSION_STORE_NAME)
+      const request = store.put(version, SCHEMA_VERSION_KEY)
+      
+      request.onerror = () => {
+        db.close()
+        reject(request.error)
+      }
+      request.onsuccess = () => {
+        db.close()
+        resolve()
+      }
+    })
   } catch (error) {
     console.warn('[Electric Worker] Failed to save schema version:', error)
   }
 }
 
-function clearLocalSchemaVersion(): void {
+async function clearLocalSchemaVersion(): Promise<void> {
   try {
-    localStorage.removeItem(SCHEMA_VERSION_KEY)
-  } catch {
+    const db = await openMetaDB()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SCHEMA_VERSION_STORE_NAME, 'readwrite')
+      const store = tx.objectStore(SCHEMA_VERSION_STORE_NAME)
+      const request = store.delete(SCHEMA_VERSION_KEY)
+      
+      request.onerror = () => {
+        db.close()
+        reject(request.error)
+      }
+      request.onsuccess = () => {
+        db.close()
+        resolve()
+      }
+    })
+  } catch (error) {
     // Ignore
   }
 }
 
 async function deleteDatabase(): Promise<void> {
-  console.log('[Electric Worker] Deleting PGLite database...')
+  console.log('[Electric Worker] Deleting all PGLite/Electric databases...')
   
-  // Delete IndexedDB database
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.deleteDatabase('docpal-electric')
-    request.onsuccess = () => {
-      console.log('[Electric Worker] Database deleted successfully')
-      resolve()
+  // PGlite with idb:// prefix creates databases with different naming patterns
+  // We need to delete all of them
+  const dbsToDelete = [
+    'docpal-electric',           // Main PGlite database
+    '/pglite/docpal-electric',   // Alternative PGlite path format
+    'pglite-docpal-electric',    // Another possible format
+  ]
+  
+  // Also try to list all IndexedDB databases and delete any that match our pattern
+  if (typeof indexedDB.databases === 'function') {
+    try {
+      const allDbs = await indexedDB.databases()
+      for (const db of allDbs) {
+        if (db.name && (
+          db.name.includes('docpal-electric') || 
+          db.name.includes('pglite') ||
+          db.name.includes('electric')
+        )) {
+          if (!dbsToDelete.includes(db.name)) {
+            dbsToDelete.push(db.name)
+          }
+        }
+      }
+      console.log('[Electric Worker] Found databases to delete:', dbsToDelete)
+    } catch (e) {
+      console.warn('[Electric Worker] Could not list databases:', e)
     }
-    request.onerror = () => {
-      console.error('[Electric Worker] Failed to delete database')
-      reject(request.error)
-    }
-    request.onblocked = () => {
-      console.warn('[Electric Worker] Database deletion blocked')
-      // Still resolve, will try again on next init
-      resolve()
-    }
+  }
+  
+  // Delete all identified databases
+  const deletePromises = dbsToDelete.map(dbName => {
+    return new Promise<void>((resolve) => {
+      const request = indexedDB.deleteDatabase(dbName)
+      request.onsuccess = () => {
+        console.log(`[Electric Worker] Deleted database: ${dbName}`)
+        resolve()
+      }
+      request.onerror = () => {
+        console.warn(`[Electric Worker] Failed to delete database: ${dbName}`)
+        resolve() // Don't reject, continue with others
+      }
+      request.onblocked = () => {
+        console.warn(`[Electric Worker] Database deletion blocked: ${dbName}`)
+        resolve()
+      }
+    })
   })
+  
+  await Promise.all(deletePromises)
+  console.log('[Electric Worker] All databases deleted')
 }
 
-async function checkSchemaVersion(): Promise<{ needsReset: boolean; newVersion: string | null }> {
+async function checkSchemaVersion(): Promise<{ needsReset: boolean; newVersion: string | null; oldVersion: string | null }> {
   const serverSchema = await fetchSchemaVersion()
   
   if (!serverSchema) {
     // Can't reach server, proceed with existing data
-    return { needsReset: false, newVersion: null }
+    return { needsReset: false, newVersion: null, oldVersion: null }
   }
   
-  const localVersion = getLocalSchemaVersion()
+  const localVersion = await getLocalSchemaVersion()
   const serverVersion = serverSchema.version
   
   console.log('[Electric Worker] Schema versions:', { local: localVersion, server: serverVersion })
   
   if (localVersion !== serverVersion) {
     console.log('[Electric Worker] Schema version mismatch! Will reset database.')
-    return { needsReset: true, newVersion: serverVersion }
+    return { needsReset: true, newVersion: serverVersion, oldVersion: localVersion }
   }
   
-  return { needsReset: false, newVersion: serverVersion }
+  return { needsReset: false, newVersion: serverVersion, oldVersion: localVersion }
 }
 
 // ============================================
@@ -191,14 +286,14 @@ async function initDB(): Promise<any> {
   
   try {
     // Check schema version first
-    const { needsReset, newVersion } = await checkSchemaVersion()
+    const { needsReset, newVersion, oldVersion } = await checkSchemaVersion()
     
     if (needsReset) {
-      const oldVersion = getLocalSchemaVersion()
+      console.log('[Electric Worker] Schema mismatch detected, resetting database...')
       
       // Clear existing database
       await deleteDatabase()
-      clearLocalSchemaVersion()
+      await clearLocalSchemaVersion()
       
       // Notify all tabs about schema reset
       broadcast({
@@ -224,7 +319,7 @@ async function initDB(): Promise<any> {
     
     // Save schema version after successful init
     if (newVersion) {
-      setLocalSchemaVersion(newVersion)
+      await setLocalSchemaVersion(newVersion)
       state.schemaVersion = newVersion
     }
     
@@ -571,10 +666,25 @@ async function stopShape(shapeName: string): Promise<void> {
 async function forceReset(): Promise<void> {
   console.log('[Electric Worker] Force resetting database...')
   
+  // Stop all polling intervals first
+  for (const [shapeName, intervalId] of pollingIntervals) {
+    clearInterval(intervalId)
+    console.log(`[Electric Worker] Stopped polling for "${shapeName}"`)
+  }
+  pollingIntervals.clear()
+  
   // Stop all shapes
   for (const shapeName of state.activeShapes.keys()) {
-    await stopShape(shapeName)
+    const shapeState = state.activeShapes.get(shapeName)
+    if (shapeState?.shape?.unsubscribe) {
+      try {
+        await shapeState.shape.unsubscribe()
+      } catch (e) {
+        console.warn(`[Electric Worker] Error unsubscribing shape "${shapeName}":`, e)
+      }
+    }
   }
+  state.activeShapes.clear()
   
   // Close existing database
   if (state.db) {
@@ -586,12 +696,18 @@ async function forceReset(): Promise<void> {
     state.db = null
   }
   
-  // Delete database
+  // Delete all databases
   await deleteDatabase()
-  clearLocalSchemaVersion()
+  await clearLocalSchemaVersion()
+  
+  // Clear table schema cache
+  for (const key of Object.keys(tableSchemaCache)) {
+    delete tableSchemaCache[key]
+  }
   
   // Reset state
   state.isReady = false
+  state.isInitializing = false
   state.error = null
   state.schemaVersion = null
   

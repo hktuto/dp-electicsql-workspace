@@ -8,34 +8,8 @@
  * - Components query what they need
  * - Components subscribe to change events to re-query
  */
+import type { MenuItem, Workspace } from '#shared/types/db'
 
-export interface MenuItem {
-  id: string
-  label: string
-  slug: string
-  type: 'folder' | 'table' | 'view' | 'dashboard'
-  itemId?: string
-  description?: string
-  children?: MenuItem[]
-  order: number
-  viewId?: string
-  tableId?: string
-  tableSlug?: string
-}
-
-export interface Workspace {
-  id: string
-  name: string
-  slug: string
-  icon: string | null
-  description: string | null
-  menu: MenuItem[]
-  company_id: string
-  workspace_users: string[]
-  created_by: string
-  created_at: string
-  updated_at: string
-}
 
 interface WorkspaceSyncState {
   isSyncing: boolean
