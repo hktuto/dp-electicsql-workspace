@@ -13,7 +13,7 @@
       </el-empty>
     </div>
 
-    <div v-else class="workspace-wrapper">
+    <div v-else ref="wrapperRef" :class="['workspace-wrapper', { 'mobile-view': isMobileView }]">
       <!-- Mobile Menu Toggle -->
       <button 
         class="workspace-menu-toggle"
@@ -181,6 +181,11 @@ const { currentCompany, isAdmin: isCompanyAdmin } = useCompanyContext()
 const workspaceSync = useWorkspaceSync()
 const companySync = useCompanySync()
 
+// Responsive state
+const wrapperRef = ref<HTMLElement | null>(null)
+const isMobileView = ref(false)
+let resizeObserver: ResizeObserver | null = null
+
 // Menu state
 const isMenuOpen = ref(false)
 
@@ -286,6 +291,29 @@ onMounted(async () => {
       router.push('/workspaces')
     }
   })
+
+  // Set up ResizeObserver for container-based responsive
+  nextTick(() => {
+    if (wrapperRef.value) {
+      resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          isMobileView.value = entry.contentRect.width < 768
+          // Close menu when switching to desktop
+          if (!isMobileView.value) {
+            isMenuOpen.value = false
+          }
+        }
+      })
+      resizeObserver.observe(wrapperRef.value)
+    }
+  })
+})
+
+onUnmounted(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 
 // Watch for slug changes
@@ -316,8 +344,41 @@ watch(() => props.route, () => {
   display: grid;
   grid-template-columns: min-content 1fr;
   position: relative;
+  // Transform creates new stacking context for fixed children
+  transform: translateZ(0);
   container-name: workspaceWrapper;
   container-type: inline-size;
+
+  // Responsive: single column on mobile
+  &.mobile-view {
+    grid-template-columns: 1fr;
+
+    .workspace-menu-toggle {
+      display: flex;
+    }
+
+    .workspace-overlay {
+      display: block;
+    }
+
+    .workspace-sidebar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      z-index: 100;
+      transform: translateX(-100%);
+      box-shadow: var(--app-shadow-xl);
+
+      &.open {
+        transform: translateX(0);
+      }
+    }
+
+    .header-left {
+      padding-left: 44px;
+    }
+  }
 }
 
 // Mobile menu toggle
@@ -348,7 +409,7 @@ watch(() => props.route, () => {
 // Overlay
 .workspace-overlay {
   display: none;
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
   z-index: 99;
@@ -470,39 +531,6 @@ watch(() => props.route, () => {
   justify-content: center;
   height: 100%;
   padding: var(--app-space-l);
-}
-
-// Container query for responsive
-@container workspaceWrapper (max-width: 768px) {
-  .workspace-wrapper {
-    grid-template-columns: 1fr;
-  }
-
-  .workspace-menu-toggle {
-    display: flex;
-  }
-
-  .workspace-overlay {
-    display: block;
-  }
-
-  .workspace-sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100dvh;
-    z-index: 100;
-    transform: translateX(-100%);
-    box-shadow: var(--app-shadow-xl);
-
-    &.open {
-      transform: translateX(0);
-    }
-  }
-
-  .header-left {
-    padding-left: 44px; // Space for toggle button
-  }
 }
 
 // Transitions
