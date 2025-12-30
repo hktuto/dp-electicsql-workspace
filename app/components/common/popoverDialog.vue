@@ -448,8 +448,8 @@ defineExpose({
       width: 0;
       height: 0;
       border: 9px solid transparent;
-      border-bottom-color: var(--app-border-color);
-      border-top-width: 0;
+      // border-bottom-color: var(--app-border-color);
+      // border-top-width: 0;
       top: -9px;
       left: -9px;
     }
@@ -466,8 +466,8 @@ defineExpose({
       width: 0;
       height: 0;
       border: 9px solid transparent;
-      border-top-color: var(--app-border-color);
-      border-bottom-width: 0;
+      // border-top-color: var(--app-border-color);
+      // border-bottom-width: 0;
       bottom: -9px;
       left: -9px;
     }
@@ -484,8 +484,8 @@ defineExpose({
       width: 0;
       height: 0;
       border: 9px solid transparent;
-      border-left-color: var(--app-border-color);
-      border-right-width: 0;
+      // border-left-color: var(--app-border-color);
+      // border-right-width: 0;
       right: -9px;
       top: -9px;
     }
@@ -502,8 +502,8 @@ defineExpose({
       width: 0;
       height: 0;
       border: 9px solid transparent;
-      border-right-color: var(--app-border-color);
-      border-left-width: 0;
+      // border-right-color: var(--app-border-color);
+      // border-left-width: 0;
       left: -9px;
       top: -9px;
     }

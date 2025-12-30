@@ -1,6 +1,6 @@
 import type { ColumnType } from '#shared/types/data-table'
 import type { DataTableColumn } from '#shared/types/db'
-
+import { db } from 'hub:db'
 /**
  * Generate a short unique ID for table names
  * Format: dt_xxxxxxx (where x is alphanumeric)
@@ -183,7 +183,6 @@ export function validateColumnName(columnName: string): boolean {
  * Execute raw SQL on the database
  */
 export async function executeSql(sql: string) {
-  const db = hubDatabase()
-  return await db.exec(sql)
+  return await db.execute(sql)
 }
 

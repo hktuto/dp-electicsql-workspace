@@ -388,6 +388,8 @@ function navigateToItem(item: MenuItem) {
       router.push(`${base}/folder/${item.id}`)
       break
     case 'table':
+      router.push(`${base}/tables/${item.id}`)
+      break
     case 'view':
       router.push(`${base}/view/${item.id}`)
       break
@@ -471,18 +473,17 @@ async function handleCreateTable() {
         icon: createTableForm.value.icon || undefined,
       },
     })
-    if(!newTable || !newTable.success) {
+    if(!newTable || !newTable.success || !newTable.table) {
       ElMessage.error(newTable.error?.message || 'Failed to create table')
       return
     }
     // Create menu item with type 'table'
     const menuItem: MenuItem = {
-      id: newTable.id,
-      label: newTable.name,
-      slug: newTable.slug,
+      id: newTable.table.id,
+      label: newTable.table.name,
+      slug: newTable.table.slug,
       type: 'table',  // Explicitly set type as 'table'
       order: 0,
-      icon: newTable.icon,
     }
 
     // Add to menu (root or folder)
@@ -510,8 +511,8 @@ async function handleCreateTable() {
     createTablePopover.value?.close()
 
     // Navigate to table
-    ElMessage.success(`Table "${newTable.name}" created successfully`)
-    router.push(`/workspaces/${props.workspaceSlug}/tables/${newTable.slug}`)
+    ElMessage.success(`Table "${newTable.table.name}" created successfully`)
+    router.push(`/workspaces/${props.workspaceSlug}/tables/${newTable.table.slug}`)
   } catch (error: any) {
     console.error('Failed to create table:', error)
     ElMessage.error(error.data?.message || 'Failed to create table')
