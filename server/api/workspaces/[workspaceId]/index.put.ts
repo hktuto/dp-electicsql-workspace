@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { db, schema } from 'hub:db'
 import { requireAuth } from '~~/server/utils/auth'
 
@@ -8,9 +8,9 @@ import { requireAuth } from '~~/server/utils/auth'
  */
 export default defineEventHandler(async (event) => {
   const user = await requireAuth(event)
-  const id = getRouterParam(event, 'id')
+  const workspaceId = getRouterParam(event, 'workspaceId')
 
-  if (!id) {
+  if (!workspaceId) {
     throw createError({
       statusCode: 400,
       message: 'Workspace ID is required',
@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
   const [workspace] = await db
     .select()
     .from(schema.workspaces)
-    .where(eq(schema.workspaces.id, id))
+    .where(eq(schema.workspaces.id, workspaceId))
     .limit(1)
 
   if (!workspace) {
@@ -38,8 +38,7 @@ export default defineEventHandler(async (event) => {
   const membership = await db
     .select({ role: schema.companyMembers.role })
     .from(schema.companyMembers)
-    .where(eq(schema.companyMembers.companyId, workspace.companyId))
-    .where(eq(schema.companyMembers.userId, user.userId))
+    .where(and(eq(schema.companyMembers.companyId, workspace.companyId), eq(schema.companyMembers.userId, user.userId)))
     .limit(1)
 
   if (membership.length === 0 && !user.isSuperAdmin) {
@@ -93,13 +92,13 @@ export default defineEventHandler(async (event) => {
       menu: menu !== undefined ? menu : workspace.menu,
       updatedAt: new Date(),
     })
-    .where(eq(schema.workspaces.id, id))
+    .where(eq(schema.workspaces.id, workspaceId))
 
   // Fetch updated workspace
   const [updated] = await db
     .select()
     .from(schema.workspaces)
-    .where(eq(schema.workspaces.id, id))
+    .where(eq(schema.workspaces.id, workspaceId))
 
   return { workspace: updated }
 })

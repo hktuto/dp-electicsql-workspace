@@ -3,9 +3,7 @@ import { db } from 'hub:db'
 import { dataTables } from 'hub:db:schema'
 
 export default defineEventHandler(async (event) => {
-  // Auth check
-  await requireAuth(event)
-  
+
   const workspaceId = getRouterParam(event, 'workspaceId')
   const tableId = getRouterParam(event, 'id')
   
@@ -45,7 +43,6 @@ export default defineEventHandler(async (event) => {
     })
     .where(eq(dataTables.id, tableId))
     .returning()
-    .get()
 
   return {
     success: true,

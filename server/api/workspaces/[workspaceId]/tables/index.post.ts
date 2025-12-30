@@ -1,11 +1,9 @@
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { db } from 'hub:db'
 import { dataTables, dataTableColumns, tableMigrations, workspaces } from 'hub:db:schema'
 import { generateTableName, generateCreateTableSql, executeSql, validateTableName } from '~~/server/utils/dynamic-table'
 
 export default defineEventHandler(async (event) => {
-  console.log('create table')
-  
   // Get user from context (set by auth middleware)
   const user = event.context.user
   
@@ -15,10 +13,29 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { name, slug, description, icon, columns } = body
+  let { name, slug, description, icon, columns } = body
 
-  if (!name || !slug) {
-    throw createError({ statusCode: 400, message: 'Name and slug are required' })
+  if (!name) {
+    throw createError({ statusCode: 400, message: 'Name is required' })
+  }
+
+  // Auto-generate slug from name if not provided
+  if (!slug) {
+    slug = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+      .replace(/\s+/g, '-')          // Replace spaces with hyphens
+      .replace(/-+/g, '-')           // Replace multiple hyphens with single
+      .replace(/^-|-$/g, '')         // Remove leading/trailing hyphens
+  }
+
+  // Validate slug format
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    throw createError({
+      statusCode: 400,
+      message: 'Slug must be lowercase alphanumeric with hyphens only',
+    })
   }
 
   // Get workspace to verify access and get companyId
@@ -29,6 +46,30 @@ export default defineEventHandler(async (event) => {
 
   // TODO: Check user has permission to create tables in this workspace
   // For now, we'll allow any authenticated user
+
+  // Check if slug already exists in this workspace and make it unique
+  let finalSlug = slug
+  let slugAttempts = 0
+  while (slugAttempts < 10) {
+    const [existing] = await db.select()
+      .from(dataTables)
+      .where(and(
+        eq(dataTables.workspaceId, workspaceId),
+        eq(dataTables.slug, finalSlug)
+      ))
+      .limit(1)
+    
+    if (!existing) break
+    
+    slugAttempts++
+    finalSlug = `${slug}-${slugAttempts}`
+  }
+
+  if (slugAttempts === 10) {
+    throw createError({ statusCode: 500, message: 'Failed to generate unique slug' })
+  }
+
+  slug = finalSlug
 
   // Generate unique physical table name
   let tableName = generateTableName()

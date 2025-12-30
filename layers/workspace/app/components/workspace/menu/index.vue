@@ -14,7 +14,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
+  const { $api } = useNuxtApp()
 const router = useRouter()
 
 // Helper: Get all folder IDs recursively
@@ -260,7 +260,7 @@ const deleteItem = async (id: string) => {
   // If it's a table, delete the physical table via API
   if (item.type === 'table') {
     try {
-      await $fetch(`/api/workspaces/${props.workspaceId}/tables/${id}`, {
+      await $api(`/api/workspaces/${props.workspaceId}/tables/${id}`, {
         method: 'DELETE',
       })
       ElMessage.success(`Table "${item.label}" deleted successfully`)
@@ -463,7 +463,7 @@ async function handleCreateTable() {
 
   try {
     // Create table via API
-    const newTable = await $fetch(`/api/workspaces/${props.workspaceId}/tables`, {
+    const newTable = await $api(`/api/workspaces/${props.workspaceId}/tables`, {
       method: 'POST',
       body: {
         name: createTableForm.value.name,
@@ -471,7 +471,10 @@ async function handleCreateTable() {
         icon: createTableForm.value.icon || undefined,
       },
     })
-
+    if(!newTable || !newTable.success) {
+      ElMessage.error(newTable.error?.message || 'Failed to create table')
+      return
+    }
     // Create menu item with type 'table'
     const menuItem: MenuItem = {
       id: newTable.id,
