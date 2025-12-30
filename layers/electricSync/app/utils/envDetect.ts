@@ -22,12 +22,14 @@ export async function detectCapabilities(): Promise<EnvCapabilities> {
   // PGlite OPFS AHP requires createSyncAccessHandle API, not just OPFS
   let supportsOPFS = false
   try {
+    console.log('[EnvDetect] Checking OPFS support...')
     if ('storage' in navigator && 'getDirectory' in navigator.storage) {
       const root = await navigator.storage.getDirectory()
       // Test if sync access handles are available
-      const testFile = await root.getFileHandle('__opfs_test__', { create: true })
-      const accessHandle = await (testFile as any).createSyncAccessHandle()
-      
+      const testFile = await root.getFileHandle('sync-test.txt', { create: true })
+      console.log('[EnvDetect] Test file created:', testFile)
+      const accessHandle = await testFile.createSyncAccessHandle()
+      console.log('[EnvDetect] OPFS sync access handles available:', accessHandle)
       if (accessHandle) {
         // Cleanup
         accessHandle.close()
@@ -35,8 +37,9 @@ export async function detectCapabilities(): Promise<EnvCapabilities> {
         supportsOPFS = true
       }
     }
+    console.log('[EnvDetect] OPFS sync access handles not available:', supportsOPFS)
   } catch (error) {
-    console.warn('[EnvDetect] OPFS sync access handles not available:', error)
+    console.log('[EnvDetect] OPFS sync access handles not available:', error)
     supportsOPFS = false
   }
   

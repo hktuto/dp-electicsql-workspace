@@ -18,6 +18,7 @@
 - [x] Create workspace sidebar (structure ready, awaiting menu system)
 - [ ] Implement menu folder/item drag-and-drop (deferred to menu system integration)
 - [x] Create workspace settings UI
+- [x] Implement menu folder/item drag-and-drop (completed in Phase 3.2)
 
 ---
 
@@ -82,8 +83,8 @@ export const workspaces = pgTable('workspaces', {
 ## Completion Criteria
 
 - [x] Company admin can create workspaces
-- [ ] Workspace has customizable menu (structure ready, awaiting menu component integration)
-- [ ] Menu supports drag-and-drop reordering (awaiting menu component integration)
+- [x] Workspace has customizable menu (completed in Phase 3.2)
+- [x] Menu supports drag-and-drop reordering (completed in Phase 3.2)
 - [x] Workspace data syncs to frontend
 - [x] Workspace list, detail, and settings pages created
 - [x] Full CRUD operations functional
@@ -343,7 +344,7 @@ Added new section to `.cursor/rules/main/RULE.md`:
 - Electric SQL sync configured
 - Row-level filtering working
 
-**Phase 3.0 Frontend**: 🟡 **In Progress**
+**Phase 3.0 Frontend**: ✅ **Complete**
 - [x] Page wrappers created
 - [x] Global components implemented
 - [x] Workspace list with search
@@ -352,8 +353,14 @@ Added new section to `.cursor/rules/main/RULE.md`:
 - [x] User profile menu
 - [x] Icon picker system
 - [x] Custom popover/dialog system
-- [ ] Menu sidebar integration (pending)
-- [ ] Drag-and-drop menu (pending)
+- [x] Menu sidebar integration (Phase 3.2)
+- [x] Drag-and-drop menu (Phase 3.2)
+
+---
+
+## Status: ✅ COMPLETE (2024-12-30)
+
+All workspace features completed including menu system integration.
 
 **Next Phase**: Phase 4.0 - Dynamic Tables
 
