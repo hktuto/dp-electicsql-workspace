@@ -58,11 +58,11 @@ function handleLabelDoubleClick() {
 function handleItemClick() {
   menuContext.navigateToItem(props.item)
 }
-
+const itemContentRef = ref<HTMLElement>()
 // Handle actions menu
 function handleActionsClick(event: MouseEvent) {
   event.stopPropagation()
-  actionsPopover.value?.open(event.currentTarget)
+  actionsPopover.value?.open(itemContentRef.value)
 }
 
 // Handle save from label editor
@@ -83,7 +83,7 @@ function handleCancelEdit() {
     @mouseenter="isHovered = true"
     @mouseleave="isHovered = false"
   >
-    <div class="item-content" @click="handleItemClick">
+    <div ref="itemContentRef" class="item-content" @click="handleItemClick">
       <!-- Drag Handle (admin only, shown on hover) -->
       <div
         v-if="isAdmin"

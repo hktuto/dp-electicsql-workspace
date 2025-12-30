@@ -14,9 +14,9 @@ export function useDataTableSync() {
     if (isReady.value) return
 
     try {
-      await electricSync.syncShape('data_tables', 'data_tables')
-      await electricSync.syncShape('data_table_columns', 'data_table_columns')
-      await electricSync.syncShape('table_migrations', 'table_migrations')
+      await electricSync.syncShape('data_tables', 'data_tables', '/api/electric/shape?table=data_tables')
+      await electricSync.syncShape('data_table_columns', 'data_table_columns', '/api/electric/shape?table=data_table_columns')
+      await electricSync.syncShape('table_migrations', 'table_migrations', '/api/electric/shape?table=table_migrations')
       isReady.value = true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to start sync'
@@ -26,34 +26,20 @@ export function useDataTableSync() {
 
   // Get all tables for a workspace
   async function getByWorkspaceId(workspaceId: string): Promise<DataTable[]> {
-    await startSync()
-    const db = await electricSync.getDB()
-    if (!db) return []
-
-    try {
-      const result = await db.query<DataTable>(
-        `SELECT * FROM data_tables WHERE workspace_id = $1 ORDER BY created_at DESC`,
-        [workspaceId]
-      )
-      return result.rows
-    } catch (err) {
-      console.error('[useDataTableSync] Query error:', err)
-      return []
-    }
+    return await electricSync.query<DataTable>(
+      `SELECT * FROM data_tables WHERE workspace_id = $1 ORDER BY created_at DESC`,
+      [workspaceId]
+    )
   }
 
   // Find table by ID
   async function findById(id: string): Promise<DataTable | null> {
-    await startSync()
-    const db = await electricSync.getDB()
-    if (!db) return null
-
     try {
-      const result = await db.query<DataTable>(
+      const result = await electricSync.query<DataTable>(
         `SELECT * FROM data_tables WHERE id = $1 LIMIT 1`,
         [id]
       )
-      return result.rows[0] || null
+      return result[0] || null
     } catch (err) {
       console.error('[useDataTableSync] Query error:', err)
       return null
@@ -62,16 +48,12 @@ export function useDataTableSync() {
 
   // Find table by slug within workspace
   async function findBySlug(workspaceId: string, slug: string): Promise<DataTable | null> {
-    await startSync()
-    const db = await electricSync.getDB()
-    if (!db) return null
-
     try {
-      const result = await db.query<DataTable>(
+      const result = await electricSync.query<DataTable>(
         `SELECT * FROM data_tables WHERE workspace_id = $1 AND slug = $2 LIMIT 1`,
         [workspaceId, slug]
       )
-      return result.rows[0] || null
+      return result[0] || null
     } catch (err) {
       console.error('[useDataTableSync] Query error:', err)
       return null
@@ -80,32 +62,33 @@ export function useDataTableSync() {
 
   // Get columns for a table
   async function getColumns(tableId: string): Promise<DataTableColumn[]> {
-    await startSync()
-    const db = await electricSync.getDB()
-    if (!db) return []
 
     try {
-      const result = await db.query<DataTableColumn>(
+      return await electricSync.query<DataTableColumn>(
         `SELECT * FROM data_table_columns WHERE data_table_id = $1 ORDER BY "order"`,
         [tableId]
       )
-      return result.rows
     } catch (err) {
       console.error('[useDataTableSync] Query error:', err)
       return []
     }
   }
+  type ChangeCallback = (changes: { insert: any[]; update: any[]; delete: any[] }) => void
 
   // Subscribe to changes
-  function onChange(callback: () => void) {
-    return electricSync.onChange((change) => {
-      if (
-        change.table === 'data_tables' ||
-        change.table === 'data_table_columns' ||
-        change.table === 'table_migrations'
-      ) {
-        callback()
-      }
+  function onDataTableChange(callback: ChangeCallback) {
+    return electricSync.onDataChange('data_tables', (change) => {
+      callback(change)
+    })
+  }
+  function onDataTableColumnChange(callback: ChangeCallback) {
+    return electricSync.onDataChange('data_table_columns', (change) => {
+      callback(change)
+    })
+  }
+  function onTableMigrationChange(callback: ChangeCallback) {
+    return electricSync.onDataChange('table_migrations', (change) => {
+      callback(change)
     })
   }
 
@@ -117,7 +100,9 @@ export function useDataTableSync() {
     findById,
     findBySlug,
     getColumns,
-    onChange,
+    onDataTableChange,
+    onDataTableColumnChange,
+    onTableMigrationChange,
   }
 }
 

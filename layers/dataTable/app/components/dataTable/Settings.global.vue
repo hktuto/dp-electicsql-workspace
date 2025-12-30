@@ -58,6 +58,7 @@
           <div class="columns-header">
             <p>Define the structure of your table by managing columns</p>
             <ElButton
+              ref="addColumnButtonRef"
               type="primary"
               :icon="Plus"
               @click="showColumnDialog = true"
@@ -130,7 +131,7 @@
     <!-- Column Dialog -->
     <DataTableColumnDialog
       v-model="showColumnDialog"
-      :table-id="tableId"
+      :table-slug="tableSlug"
       :column="editingColumn"
       @saved="onColumnSaved"
     />
@@ -142,12 +143,12 @@ import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import type { DataTable, DataTableColumn } from '#shared/types/db'
 
 const props = defineProps<{
-  tableId: string
+  tableSlug: string
   workspaceId: string
 }>()
 
 const router = useAppRouter()
-const api = useAPI()
+const { $api } = useNuxtApp()
 const dataTableSync = useDataTableSync()
 
 // State
@@ -155,6 +156,7 @@ const table = ref<DataTable | null>(null)
 const columns = ref<DataTableColumn[]>([])
 const activeTab = ref('general')
 const saving = ref(false)
+const addColumnButtonRef = ref<HTMLElement>()
 const showColumnDialog = ref(false)
 const editingColumn = ref<DataTableColumn | null>(null)
 
@@ -189,10 +191,14 @@ async function loadColumns() {
 async function saveGeneral() {
   saving.value = true
   try {
-    await api.put(`/workspaces/${props.workspaceId}/tables/${props.tableId}`, {
+    
+    await $api(`/workspaces/${props.workspaceId}/tables/${props.tableSlug}`, {
+      method: 'PUT',
+      body: {
       name: generalForm.value.name,
       description: generalForm.value.description,
       icon: generalForm.value.icon,
+      }
     })
     ElMessage.success('Settings saved')
     setTimeout(loadTable, 1000)
@@ -222,7 +228,9 @@ async function deleteColumn(column: DataTableColumn) {
       }
     )
 
-    await api.delete(`/tables/${props.tableId}/columns/${column.id}`)
+    await $api(`/tables/${props.tableSlug}/columns/${column.id}`, {
+      method: 'DELETE',
+    })
     ElMessage.success('Column deleted')
     setTimeout(loadColumns, 1000)
   } catch (error: any) {
@@ -251,7 +259,9 @@ async function handleDelete() {
       }
     )
 
-    await api.delete(`/workspaces/${props.workspaceId}/tables/${props.tableId}`)
+    await $api(`/workspaces/${props.workspaceId}/tables/${props.tableSlug}`, {
+      method: 'DELETE',
+    })
     ElMessage.success('Table deleted')
     router.push(`/workspaces/${props.workspaceId}/tables`)
   } catch (error: any) {
@@ -287,7 +297,7 @@ function getColumnIcon(type: string): string {
 }
 
 // Watch for changes
-dataTableSync.onChange(() => {
+dataTableSync.onDataTableChange((changes) => {
   loadTable()
   loadColumns()
 })

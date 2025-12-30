@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Workspace } from '#shared/types/db'
+import type { Workspace, MenuItem } from '#shared/types/db'
 
 interface Props {
   slug: string
@@ -235,34 +235,52 @@ const viewType = computed(() => {
 // Sub-route slug (e.g., folder ID, view ID)
 const subSlug = computed(() => props.route[1] || null)
 
+function findMenuItemBySlug(items: MenuItem[] | undefined, slug: string): MenuItem | null {
+  if (!items) return null
+  for (const item of items) {
+    if (item.slug === slug) return item
+    if (item.children) {
+      const found = findMenuItemBySlug(item.children, slug)
+      if (found) return found
+    }
+  }
+  return null
+}
+
 // Breadcrumb items
 const breadcrumbs = computed(() => {
   const items = [
     { label: 'Workspaces', path: '/workspaces' },
     { label: workspace.value?.name || props.slug, path: `/workspaces/${props.slug}` },
   ]
-  
   const params = props.route
+  const menuItem = findMenuItemBySlug(workspace.value?.menu, params[1] || '')
   if (params[0] === 'setting') {
     items.push({ label: 'Settings', path: '' })
   } else if (params[0] === 'tables' && params[1]) {
     // Table: show table name from slug
-    items.push({ label: params[1], path: `/workspaces/${props.slug}/tables/${params[1]}` })
+    
+    const label = menuItem?.label || params[1]
+    items.push({ label, path: `/workspaces/${props.slug}/tables/${params[1]}` })
     if (params[2] === 'setting') {
       items.push({ label: 'Settings', path: '' })
     }
   } else if (params[0] === 'folder' && params[1]) {
-    items.push({ label: 'Folder', path: '' })
+    // Folder: find item by slug from menu
+    const label = menuItem?.label || 'Folder'
+    items.push({ label, path: `/workspaces/${props.slug}/folder/${params[1]}` })
     if (params[2] === 'setting') {
       items.push({ label: 'Settings', path: '' })
     }
   } else if (params[0] === 'view' && params[1]) {
-    items.push({ label: 'View', path: '' })
+    const label = menuItem?.label || 'View'
+    items.push({ label, path: `/workspaces/${props.slug}/view/${params[1]}` })
     if (params[2] === 'setting') {
       items.push({ label: 'Settings', path: '' })
     }
   } else if (params[0] === 'dashboard' && params[1]) {
-    items.push({ label: 'Dashboard', path: '' })
+    const label = menuItem?.label || 'Dashboard'
+    items.push({ label, path: `/workspaces/${props.slug}/dashboard/${params[1]}` })
     if (params[2] === 'setting') {
       items.push({ label: 'Settings', path: '' })
     }

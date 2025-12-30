@@ -2,11 +2,14 @@
 /**
  * Custom Popover Dialog Component
  * 
- * Exposes open(targetElement) and close() methods
+ * Exposes open(targetElement, highlightElement?) and close() methods
  * - Desktop + valid target: Shows positioned popover
  * - Mobile OR no target: Shows dialog
+ * - highlightElement (optional): Element to highlight with focus-outline class.
+ *   If not provided, uses targetElement for highlighting.
  */
 import { onClickOutside, useEventListener } from '@vueuse/core'
+import type { Component } from 'vue'
 
 interface Props {
   title?: string
@@ -40,6 +43,7 @@ const { isMobile } = useBreakpoint()
 // State
 const visible = ref(false)
 const targetElement = ref<HTMLElement | null>(null)
+const highlightElement = ref<HTMLElement | null>(null)
 const popoverRef = ref<HTMLElement>()
 const contentRef = ref<HTMLElement>()
 
@@ -241,8 +245,10 @@ function calculatePosition(target: HTMLElement, content: HTMLElement) {
 /**
  * Open popover
  */
-async function open(target?: HTMLElement) {
+async function open(target?: HTMLElement, highlight?: HTMLElement) {
+  // check if target is a Vue component or a DOM element
   targetElement.value = target || null
+  highlightElement.value = highlight || null
   
   // Mobile or no target → use dialog
   if (isMobile.value || !target) {
@@ -252,8 +258,9 @@ async function open(target?: HTMLElement) {
     emit('opened')
     return
   }
-  // set target to add outline
-  target.classList.add('focus-outline')
+  // set highlight element (or target if no highlight provided) to add outline
+  const elementToHighlight = highlightElement.value || target
+  elementToHighlight.classList.add('focus-outline')
   // Desktop with target → use positioned popover
   emit('open')
   visible.value = true
@@ -262,7 +269,7 @@ async function open(target?: HTMLElement) {
   
   if (!contentRef.value) return
   
-  // Calculate position
+  // Calculate position using target element
   const position = calculatePosition(target, contentRef.value)
   popoverStyle.value = {
     top: position.top,
@@ -286,8 +293,11 @@ async function close() {
   
   emit('close')
   visible.value = false
-  targetElement.value?.classList.remove('focus-outline')
+  // Remove outline from highlight element (or target if no highlight was set)
+  const elementToUnhighlight = highlightElement.value || targetElement.value
+  elementToUnhighlight?.classList.remove('focus-outline')
   targetElement.value = null
+  highlightElement.value = null
   
   await nextTick()
   emit('closed')

@@ -1,5 +1,5 @@
 <template>
-  <ElDialog
+  <el-dialog
     :model-value="modelValue"
     :title="isEdit ? 'Edit Column' : 'Add Column'"
     width="600px"
@@ -155,7 +155,7 @@
         {{ isEdit ? 'Update' : 'Create' }} Column
       </ElButton>
     </template>
-  </ElDialog>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -164,7 +164,7 @@ import type { DataTableColumn } from '#shared/types/db'
 
 const props = defineProps<{
   modelValue: boolean
-  tableId: string
+  tableSlug: string
   column?: DataTableColumn | null
 }>()
 
@@ -173,7 +173,7 @@ const emit = defineEmits<{
   'saved': []
 }>()
 
-const api = useAPI()
+const {$api} = useNuxtApp()
 const formRef = ref<FormInstance>()
 const saving = ref(false)
 
@@ -245,10 +245,16 @@ async function handleSave() {
       }
 
       if (isEdit.value && props.column) {
-        await api.put(`/tables/${props.tableId}/columns/${props.column.id}`, payload)
+        await $api(`/tables/${props.tableSlug}/columns/${props.column.id}`, {
+          method: 'PUT',
+          body: payload,
+        })
         ElMessage.success('Column updated')
       } else {
-        await api.post(`/tables/${props.tableId}/columns`, payload)
+        await $api(`/tables/${props.tableSlug}/columns`, {
+          method: 'POST',
+          body: payload,
+        })
         ElMessage.success('Column created')
       }
 

@@ -115,7 +115,7 @@ defineExpose({ open, close })
   display: flex;
   align-items: center;
   gap: var(--app-space-s);
-  padding: var(--app-space-s) var(--app-space-m);
+  padding: var(--app-space-xs) ;
   border-radius: var(--app-border-radius-s);
   cursor: pointer;
   transition: background-color 0.2s ease;

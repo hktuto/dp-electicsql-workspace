@@ -385,16 +385,16 @@ function navigateToItem(item: MenuItem) {
   console.log('navigateToItem', item)
   switch (item.type) {
     case 'folder':
-      router.push(`${base}/folder/${item.id}`)
+      router.push(`${base}/folder/${item.slug}`)
       break
     case 'table':
-      router.push(`${base}/tables/${item.id}`)
+      router.push(`${base}/tables/${item.slug}`)
       break
     case 'view':
-      router.push(`${base}/view/${item.id}`)
+      router.push(`${base}/view/${item.slug}`)
       break
     case 'dashboard':
-      router.push(`${base}/dashboard/${item.id}`)
+      router.push(`${base}/dashboard/${item.slug}`)
       break
     default:
       console.warn('Unknown item type:', item.type)
@@ -474,7 +474,7 @@ async function handleCreateTable() {
       },
     })
     if(!newTable || !newTable.success || !newTable.table) {
-      ElMessage.error(newTable.error?.message || 'Failed to create table')
+      ElMessage.error('Failed to create table')
       return
     }
     // Create menu item with type 'table'
