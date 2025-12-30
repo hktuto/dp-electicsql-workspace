@@ -13,8 +13,10 @@
 | Feature | Chrome | Firefox | Safari | Safari iOS | Chrome Android |
 |---------|--------|---------|--------|------------|----------------|
 | SharedWorker | ✅ | ✅ | ❌ | ❌ | ✅ |
-| OPFS | ✅ | ✅ | ✅ (16.4+) | ✅ (16.4+) | ✅ |
+| OPFS (opfs-ahp) | ✅ | ✅ | ⚠️ Limited* | ⚠️ Limited* | ✅ |
 | IndexedDB | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+*Safari has a limit of 252 sync access handles, which may cause issues with PGlite's 300+ files. [PGlite OPFS Docs](https://pglite.dev/docs/filesystems#opfs-ahp-fs)
 
 ---
 
@@ -134,11 +136,13 @@ interface WorkerAdapter {
 
 | Browser | Worker Type | Storage Type | Notes |
 |---------|-------------|--------------|-------|
-| Chrome Desktop | SharedWorker | OPFS | Full features |
-| Firefox | SharedWorker | OPFS | Full features |
-| Safari macOS | Worker | OPFS | Single-tab sync |
-| Safari iOS | Worker | OPFS | Single-tab sync |
-| Chrome Android | SharedWorker | OPFS | Full features |
+| Chrome Desktop | SharedWorker | OPFS (`opfs-ahp://`) | Full features |
+| Firefox | SharedWorker | OPFS (`opfs-ahp://`) | Full features |
+| Safari macOS | Worker | IndexedDB (`idb://`) | Single-tab, OPFS limited* |
+| Safari iOS | Worker | IndexedDB (`idb://`) | Single-tab, OPFS limited* |
+| Chrome Android | SharedWorker | OPFS (`opfs-ahp://`) | Full features |
+
+*Safari's 252 sync access handle limit prevents OPFS from working with PGlite's 300+ files
 
 ---
 

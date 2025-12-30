@@ -86,6 +86,10 @@ let capabilities: Capabilities = {
 // DB name will be set based on storage type
 let DB_NAME = 'idb://docpal-electric' // Default to IndexedDB
 
+// OPFS requires running in a Worker (which we are)
+const OPFS_DB_NAME = 'opfs-ahp://docpal-electric'
+const IDB_DB_NAME = 'idb://docpal-electric'
+
 const state: WorkerState = {
   db: null,
   isReady: false,
@@ -789,9 +793,11 @@ async function handleMessage(port: MessagePort, message: WorkerMessage): Promise
         if (payload.capabilities) {
           capabilities = payload.capabilities
           // Update DB_NAME based on storage type
+          // OPFS: opfs-ahp:// prefix (Access Handle Pool, requires Worker context)
+          // IndexedDB: idb:// prefix (universal fallback)
           DB_NAME = capabilities.storageType === 'opfs' 
-            ? 'docpal-electric' // OPFS doesn't need prefix
-            : 'idb://docpal-electric' // IndexedDB needs idb:// prefix
+            ? OPFS_DB_NAME
+            : IDB_DB_NAME
           
           console.log('[Electric Worker] Capabilities set:', {
             storageType: capabilities.storageType,
