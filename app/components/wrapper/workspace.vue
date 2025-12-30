@@ -50,6 +50,7 @@
         <div class="sidebar-body">
           <WorkspaceMenu
             :workspace-id="workspace.id"
+            :workspace-slug="slug"
             :initial-menu="workspace.menu || []"
             :is-admin="isCompanyAdmin"
           />

@@ -8,11 +8,14 @@ import { WorkspaceMenuContextKey } from '#layers/workspace/app/composables/useWo
 
 interface Props {
   workspaceId: string
+  workspaceSlug: string
   initialMenu: MenuItem[]
   isAdmin: boolean
 }
 
 const props = defineProps<Props>()
+
+const router = useRouter()
 
 // Helper: Get all folder IDs recursively
 function getAllFolderIds(items: MenuItem[]): string[] {
@@ -302,9 +305,30 @@ async function handleMenuChange(newItems: MenuItem[]) {
   debouncedSave(orderedMenu)
 }
 
+// Navigate to menu item
+function navigateToItem(item: MenuItem) {
+  const base = `/workspaces/${props.workspaceSlug}`
+  
+  switch (item.type) {
+    case 'folder':
+      router.push(`${base}/folder/${item.id}`)
+      break
+    case 'table':
+    case 'view':
+      router.push(`${base}/view/${item.id}`)
+      break
+    case 'dashboard':
+      router.push(`${base}/dashboard/${item.id}`)
+      break
+    default:
+      console.warn('Unknown item type:', item.type)
+  }
+}
+
 // Create context object
 const menuContext: MenuContext = {
   state: menuState,
+  workspaceSlug: computed(() => props.workspaceSlug),
   toggleFolder,
   startEdit,
   saveEdit,
@@ -312,6 +336,7 @@ const menuContext: MenuContext = {
   deleteItem,
   addItem,
   updateMenu,
+  navigateToItem,
 }
 
 // Provide context to children

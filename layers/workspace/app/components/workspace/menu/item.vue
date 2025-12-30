@@ -54,10 +54,9 @@ function handleLabelDoubleClick() {
   }
 }
 
-// Handle item click (for future navigation)
+// Handle item click - navigate to the item
 function handleItemClick() {
-  // TODO: Navigate to table/view/dashboard
-  console.log('Item clicked:', props.item)
+  menuContext.navigateToItem(props.item)
 }
 
 // Handle actions menu

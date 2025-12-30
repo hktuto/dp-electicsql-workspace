@@ -97,7 +97,7 @@ const menu = ref<MenuItem[]>([
     label: 'Workspaces',
     url: '/workspaces',
     urlRule: '^/workspaces',
-    icon: 'material-symbols:workspaces-rounded',
+    icon: 'material-symbols:work-sharp',
   },
   {
     id: 'chats',

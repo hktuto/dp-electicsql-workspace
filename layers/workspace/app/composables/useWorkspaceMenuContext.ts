@@ -1,5 +1,5 @@
 import type { MenuItem } from '#shared/types/db'
-import type { InjectionKey, Ref } from 'vue'
+import type { InjectionKey, Ref, ComputedRef } from 'vue'
 
 // Menu state for component
 export interface MenuState {
@@ -12,6 +12,7 @@ export interface MenuState {
 // Menu context interface
 export interface MenuContext {
   state: Ref<MenuState>
+  workspaceSlug: ComputedRef<string>
   toggleFolder: (id: string) => void
   startEdit: (id: string) => void
   saveEdit: (id: string, newLabel: string) => Promise<void>
@@ -19,6 +20,7 @@ export interface MenuContext {
   deleteItem: (id: string) => Promise<void>
   addItem: (parentId: string | null, type: MenuItem['type']) => Promise<void>
   updateMenu: (newMenu: MenuItem[]) => Promise<void>
+  navigateToItem: (item: MenuItem) => void
 }
 
 export const WorkspaceMenuContextKey: InjectionKey<MenuContext> = Symbol('WorkspaceMenuContext')
