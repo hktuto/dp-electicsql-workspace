@@ -246,13 +246,21 @@ const breadcrumbs = computed(() => {
 
 // Load workspace
 async function loadWorkspace() {
-  if (!currentCompany.value?.id) return
+  if (!currentCompany.value?.id) {
+    console.log('[WrapperWorkspace] No company yet, waiting...')
+    return
+  }
   
-  loading.value = workspace.value ? false : true
+  // Only show loading on initial load
+  if (!workspace.value) {
+    loading.value = true
+  }
+  
   try {
-    workspace.value = await workspaceSync.findBySlug(currentCompany.value.id, props.slug)
+    const result = await workspaceSync.findBySlug(currentCompany.value.id, props.slug)
+    workspace.value = result
     
-    if (!workspace.value) {
+    if (!result) {
       ElMessage.error('Workspace not found')
       router.push('/workspaces')
     }
@@ -276,11 +284,16 @@ function goBack() {
 
 // Lifecycle
 onMounted(async () => {
+  // Start syncs
   await Promise.all([
     companySync.startSync(),
     workspaceSync.startSync(),
   ])
-  await loadWorkspace()
+  
+  // Load workspace when company is available
+  if (currentCompany.value?.id) {
+    await loadWorkspace()
+  }
 
   // Subscribe to workspace changes
   workspaceSync.onChange((changes) => {
@@ -316,6 +329,13 @@ onUnmounted(() => {
     resizeObserver = null
   }
 })
+
+// Watch for company becoming available
+watch(() => currentCompany.value?.id, (newId) => {
+  if (newId && !workspace.value) {
+    loadWorkspace()
+  }
+}, { immediate: true })
 
 // Watch for slug changes
 watch(() => props.slug, () => {
@@ -430,7 +450,11 @@ watch(() => props.route, () => {
 }
 
 .sidebar-header {
-  padding: var(--app-space-m);
+  height: var(--app-header-height);
+  min-height: var(--app-header-height);
+  padding: 0 var(--app-space-m);
+  display: flex;
+  align-items: center;
   border-bottom: 1px solid var(--app-border-color);
 }
 
@@ -496,8 +520,9 @@ watch(() => props.route, () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--app-space-s) var(--app-space-m);
-  min-height: 52px;
+  padding: 0 var(--app-space-m);
+  height: var(--app-header-height);
+  min-height: var(--app-header-height);
   border-bottom: 1px solid var(--app-border-color);
   background: var(--el-bg-color);
   gap: var(--app-space-m);
@@ -545,3 +570,4 @@ watch(() => props.route, () => {
   opacity: 0;
 }
 </style>
+

@@ -154,12 +154,13 @@ function handleClick(item: MenuItem) {
 
 // Header with logo
 .menuHeader {
-  padding: var(--app-space-m) var(--app-space-s);
+  padding: 0 var(--app-space-s);
   display: flex;
   align-items: center;
   justify-content: center;
   border-bottom: 1px solid var(--app-border-color);
-  min-height: 60px;
+  height: var(--app-header-height);
+  min-height: var(--app-header-height);
   position: relative;
 }
 
