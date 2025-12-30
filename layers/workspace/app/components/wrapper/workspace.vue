@@ -31,151 +31,307 @@
         />
       </Transition>
 
-      <!-- Workspace Sidebar -->
-      <aside :class="['workspace-sidebar', { open: isMenuOpen }]">
-        <!-- Header: Workspace Info -->
-        <div class="sidebar-header">
-          <div class="workspace-info">
-            <div class="workspace-icon">
-              <Icon v-if="workspace.icon" :name="workspace.icon" size="24" />
-              <el-avatar v-else :size="32" shape="square">
-                {{ workspace.name.charAt(0).toUpperCase() }}
-              </el-avatar>
+      <!-- Desktop: Splitter Layout -->
+      <el-splitter v-if="!isMobileView" class="workspace-splitter">
+        <!-- Workspace Sidebar Panel -->
+        <el-splitter-panel :size="sidebarWidth" :min="200" :max="380" collapsible>
+          <aside class="workspace-sidebar">
+            <!-- Header: Workspace Info -->
+            <div class="sidebar-header">
+              <div class="workspace-info">
+                <div class="workspace-icon">
+                  <Icon v-if="workspace.icon" :name="workspace.icon" size="24" />
+                  <el-avatar v-else :size="32" shape="square">
+                    {{ workspace.name.charAt(0).toUpperCase() }}
+                  </el-avatar>
+                </div>
+                <div class="workspace-name">{{ workspace.name }}</div>
+              </div>
             </div>
-            <div class="workspace-name">{{ workspace.name }}</div>
-          </div>
-        </div>
-        
-        <!-- Body: Menu -->
-        <div class="sidebar-body">
-          <WorkspaceMenu
-            :workspace-id="workspace.id"
-            :workspace-slug="slug"
-            :initial-menu="workspace.menu || []"
-            :is-admin="isCompanyAdmin"
-          />
-        </div>
-        
-        <!-- Footer: Actions -->
-        <div class="sidebar-footer">
-          <div class="footer-item" @click="goToSettings">
-            <Icon name="material-symbols:settings-outline-rounded" />
-            <span>Settings</span>
-          </div>
-        </div>
-      </aside>
-
-      <!-- Workspace Content -->
-      <div class="workspace-content">
-        <!-- Header -->
-        <header class="workspace-header">
-          <div class="header-left">
-            <el-breadcrumb separator="/">
-              <el-breadcrumb-item 
-                v-for="(item, index) in breadcrumbs" 
-                :key="index"
-                :to="item.path ? { path: item.path } : undefined"
-              >
-                {{ item.label }}
-              </el-breadcrumb-item>
-            </el-breadcrumb>
-          </div>
-          <div id="workspace-header-actions" class="header-right">
-            <!-- Actions based on view -->
-            <el-button v-if="viewType === 'home'" @click="goToSettings">
-              <Icon name="material-symbols:settings-outline" />
-              Settings
-            </el-button>
-          </div>
-        </header>
-
-        <!-- Main Content - Route-based rendering -->
-        <main class="workspace-main">
-          <!-- Home View -->
-          <template v-if="viewType === 'home'">
-            <div class="welcome-content">
-              <el-empty 
-                description="Welcome to your workspace"
-                :image-size="200"
-              >
-                <template #description>
-                  <p>This workspace is ready to go!</p>
-                  <p>Add tables, views, and dashboards from the menu.</p>
-                </template>
-              </el-empty>
+            
+            <!-- Body: Menu -->
+            <div class="sidebar-body">
+              <WorkspaceMenu
+                :workspace-id="workspace.id"
+                :workspace-slug="slug"
+                :initial-menu="workspace.menu || []"
+                :is-admin="isCompanyAdmin"
+              />
             </div>
-          </template>
-
-          <!-- Settings View -->
-          <template v-else-if="viewType === 'settings'">
-            <WorkspaceSettings :slug="slug" />
-          </template>
-
-          <!-- Folder View -->
-          <template v-else-if="viewType === 'folder'">
-            <div class="placeholder-view">
-              <el-empty description="Folder View">
-                <template #description>
-                  <p>Folder: {{ subSlug }}</p>
-                  <p>Coming in Phase 4</p>
-                </template>
-              </el-empty>
+            
+            <!-- Footer: Actions -->
+            <div class="sidebar-footer">
+              <div class="footer-item" @click="goToSettings">
+                <Icon name="material-symbols:settings-outline-rounded" />
+                <span>Settings</span>
+              </div>
             </div>
-          </template>
+          </aside>
+        </el-splitter-panel>
 
-          <!-- Table View -->
-          <template v-else-if="viewType === 'table'">
-            <div class="placeholder-view">
-              <el-empty description="Table Data View">
-                <template #description>
-                  <p>Table: {{ subSlug }}</p>
-                  <p>Data grid and records coming soon</p>
-                </template>
-              </el-empty>
-            </div>
-          </template>
-
-          <!-- Table Settings View -->
-          <template v-else-if="viewType === 'table-settings'">
-            <DataTableSettings :workspace-id="workspace.id" :table-slug="subSlug!" />
-          </template>
-
-          <!-- View View -->
-          <template v-else-if="viewType === 'view'">
-            <div class="placeholder-view">
-              <el-empty description="Table View">
-                <template #description>
-                  <p>View: {{ subSlug }}</p>
-                  <p>Coming in Phase 5</p>
-                </template>
-              </el-empty>
-            </div>
-          </template>
-
-          <!-- Dashboard View -->
-          <template v-else-if="viewType === 'dashboard'">
-            <div class="placeholder-view">
-              <el-empty description="Dashboard View">
-                <template #description>
-                  <p>Dashboard: {{ subSlug }}</p>
-                  <p>Coming in Phase 6</p>
-                </template>
-              </el-empty>
-            </div>
-          </template>
-
-          <!-- Not Found -->
-          <template v-else>
-            <div class="placeholder-view">
-              <el-empty description="Page not found">
-                <el-button type="primary" @click="router.push(`/workspaces/${slug}`)">
-                  Go to Workspace Home
+        <!-- Workspace Content Panel -->
+        <el-splitter-panel>
+          <div class="workspace-content">
+            <!-- Header -->
+            <header class="workspace-header">
+              <div class="header-left">
+                <el-breadcrumb separator="/">
+                  <el-breadcrumb-item 
+                    v-for="(item, index) in breadcrumbs" 
+                    :key="index"
+                    :to="item.path ? { path: item.path } : undefined"
+                  >
+                    {{ item.label }}
+                  </el-breadcrumb-item>
+                </el-breadcrumb>
+              </div>
+              <div id="workspace-header-actions" class="header-right">
+                <!-- Actions based on view -->
+                <el-button v-if="viewType === 'home'" @click="goToSettings">
+                  <Icon name="material-symbols:settings-outline" />
+                  Settings
                 </el-button>
-              </el-empty>
+              </div>
+            </header>
+
+            <!-- Main Content - Route-based rendering -->
+            <main class="workspace-main">
+              <!-- Home View -->
+              <template v-if="viewType === 'home'">
+                <div class="welcome-content">
+                  <el-empty 
+                    description="Welcome to your workspace"
+                    :image-size="200"
+                  >
+                    <template #description>
+                      <p>This workspace is ready to go!</p>
+                      <p>Add tables, views, and dashboards from the menu.</p>
+                    </template>
+                  </el-empty>
+                </div>
+              </template>
+
+              <!-- Settings View -->
+              <template v-else-if="viewType === 'settings'">
+                <WorkspaceSettings :slug="slug" />
+              </template>
+
+              <!-- Folder View -->
+              <template v-else-if="viewType === 'folder'">
+                <div class="placeholder-view">
+                  <el-empty description="Folder View">
+                    <template #description>
+                      <p>Folder: {{ subSlug }}</p>
+                      <p>Coming in Phase 4</p>
+                    </template>
+                  </el-empty>
+                </div>
+              </template>
+
+              <!-- Table View -->
+              <template v-else-if="viewType === 'table'">
+                <div class="placeholder-view">
+                  <el-empty description="Table Data View">
+                    <template #description>
+                      <p>Table: {{ subSlug }}</p>
+                      <p>Data grid and records coming soon</p>
+                    </template>
+                  </el-empty>
+                </div>
+              </template>
+
+              <!-- Table Settings View -->
+              <template v-else-if="viewType === 'table-settings'">
+                <DataTableSettings :workspace-id="workspace.id" :table-slug="subSlug!" />
+              </template>
+
+              <!-- View View -->
+              <template v-else-if="viewType === 'view'">
+                <div class="placeholder-view">
+                  <el-empty description="Table View">
+                    <template #description>
+                      <p>View: {{ subSlug }}</p>
+                      <p>Coming in Phase 5</p>
+                    </template>
+                  </el-empty>
+                </div>
+              </template>
+
+              <!-- Dashboard View -->
+              <template v-else-if="viewType === 'dashboard'">
+                <div class="placeholder-view">
+                  <el-empty description="Dashboard View">
+                    <template #description>
+                      <p>Dashboard: {{ subSlug }}</p>
+                      <p>Coming in Phase 6</p>
+                    </template>
+                  </el-empty>
+                </div>
+              </template>
+
+              <!-- Not Found -->
+              <template v-else>
+                <div class="placeholder-view">
+                  <el-empty description="Page not found">
+                    <el-button type="primary" @click="router.push(`/workspaces/${slug}`)">
+                      Go to Workspace Home
+                    </el-button>
+                  </el-empty>
+                </div>
+              </template>
+            </main>
+          </div>
+        </el-splitter-panel>
+      </el-splitter>
+
+      <!-- Mobile: Fixed Layout -->
+      <template v-else>
+        <!-- Workspace Sidebar -->
+        <aside :class="['workspace-sidebar', { open: isMenuOpen }]">
+          <!-- Header: Workspace Info -->
+          <div class="sidebar-header">
+            <div class="workspace-info">
+              <div class="workspace-icon">
+                <Icon v-if="workspace.icon" :name="workspace.icon" size="24" />
+                <el-avatar v-else :size="32" shape="square">
+                  {{ workspace.name.charAt(0).toUpperCase() }}
+                </el-avatar>
+              </div>
+              <div class="workspace-name">{{ workspace.name }}</div>
             </div>
-          </template>
-        </main>
-      </div>
+          </div>
+          
+          <!-- Body: Menu -->
+          <div class="sidebar-body">
+            <WorkspaceMenu
+              :workspace-id="workspace.id"
+              :workspace-slug="slug"
+              :initial-menu="workspace.menu || []"
+              :is-admin="isCompanyAdmin"
+            />
+          </div>
+          
+          <!-- Footer: Actions -->
+          <div class="sidebar-footer">
+            <div class="footer-item" @click="goToSettings">
+              <Icon name="material-symbols:settings-outline-rounded" />
+              <span>Settings</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Workspace Content -->
+        <div class="workspace-content">
+          <!-- Header -->
+          <header class="workspace-header">
+            <div class="header-left">
+              <el-breadcrumb separator="/">
+                <el-breadcrumb-item 
+                  v-for="(item, index) in breadcrumbs" 
+                  :key="index"
+                  :to="item.path ? { path: item.path } : undefined"
+                >
+                  {{ item.label }}
+                </el-breadcrumb-item>
+              </el-breadcrumb>
+            </div>
+            <div id="workspace-header-actions" class="header-right">
+              <!-- Actions based on view -->
+              <el-button v-if="viewType === 'home'" @click="goToSettings">
+                <Icon name="material-symbols:settings-outline" />
+                Settings
+              </el-button>
+            </div>
+          </header>
+
+          <!-- Main Content - Route-based rendering -->
+          <main class="workspace-main">
+            <!-- Home View -->
+            <template v-if="viewType === 'home'">
+              <div class="welcome-content">
+                <el-empty 
+                  description="Welcome to your workspace"
+                  :image-size="200"
+                >
+                  <template #description>
+                    <p>This workspace is ready to go!</p>
+                    <p>Add tables, views, and dashboards from the menu.</p>
+                  </template>
+                </el-empty>
+              </div>
+            </template>
+
+            <!-- Settings View -->
+            <template v-else-if="viewType === 'settings'">
+              <WorkspaceSettings :slug="slug" />
+            </template>
+
+            <!-- Folder View -->
+            <template v-else-if="viewType === 'folder'">
+              <div class="placeholder-view">
+                <el-empty description="Folder View">
+                  <template #description>
+                    <p>Folder: {{ subSlug }}</p>
+                    <p>Coming in Phase 4</p>
+                  </template>
+                </el-empty>
+              </div>
+            </template>
+
+            <!-- Table View -->
+            <template v-else-if="viewType === 'table'">
+              <div class="placeholder-view">
+                <el-empty description="Table Data View">
+                  <template #description>
+                    <p>Table: {{ subSlug }}</p>
+                    <p>Data grid and records coming soon</p>
+                  </template>
+                </el-empty>
+              </div>
+            </template>
+
+            <!-- Table Settings View -->
+            <template v-else-if="viewType === 'table-settings'">
+              <DataTableSettings :workspace-id="workspace.id" :table-slug="subSlug!" />
+            </template>
+
+            <!-- View View -->
+            <template v-else-if="viewType === 'view'">
+              <div class="placeholder-view">
+                <el-empty description="Table View">
+                  <template #description>
+                    <p>View: {{ subSlug }}</p>
+                    <p>Coming in Phase 5</p>
+                  </template>
+                </el-empty>
+              </div>
+            </template>
+
+            <!-- Dashboard View -->
+            <template v-else-if="viewType === 'dashboard'">
+              <div class="placeholder-view">
+                <el-empty description="Dashboard View">
+                  <template #description>
+                    <p>Dashboard: {{ subSlug }}</p>
+                    <p>Coming in Phase 6</p>
+                  </template>
+                </el-empty>
+              </div>
+            </template>
+
+            <!-- Not Found -->
+            <template v-else>
+              <div class="placeholder-view">
+                <el-empty description="Page not found">
+                  <el-button type="primary" @click="router.push(`/workspaces/${slug}`)">
+                    Go to Workspace Home
+                  </el-button>
+                </el-empty>
+              </div>
+            </template>
+          </main>
+        </div>
+      </template>
     </div>
   </WrapperMain>
 </template>
@@ -206,6 +362,9 @@ let resizeObserver: ResizeObserver | null = null
 
 // Menu state
 const isMenuOpen = ref(false)
+
+// Sidebar width for splitter (in pixels)
+const sidebarWidth = ref(280)
 
 // Workspace data
 const workspace = useState<Workspace | null>('currentworkspace', () => null)
@@ -407,8 +566,6 @@ watch(() => props.route, () => {
 
 .workspace-wrapper {
   height: 100%;
-  display: grid;
-  grid-template-columns: min-content 1fr;
   position: relative;
   // Transform creates new stacking context for fixed children
   transform: translateZ(0);
@@ -417,8 +574,6 @@ watch(() => props.route, () => {
 
   // Responsive: single column on mobile
   &.mobile-view {
-    grid-template-columns: 1fr;
-
     .workspace-menu-toggle {
       display: flex;
     }
@@ -444,6 +599,15 @@ watch(() => props.route, () => {
     .header-left {
       padding-left: 44px;
     }
+  }
+}
+
+// Splitter for desktop
+.workspace-splitter {
+  height: 100%;
+  
+  :deep(.el-splitter__wrapper) {
+    height: 100%;
   }
 }
 
@@ -484,14 +648,19 @@ watch(() => props.route, () => {
 
 // Sidebar
 .workspace-sidebar {
-  width: 280px;
+  width: 100%;
   height: 100%;
   background: var(--el-bg-color);
-  border-right: 1px solid var(--app-border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   transition: transform 0.3s ease;
+  
+  // Mobile specific
+  .mobile-view & {
+    width: 280px;
+    border-right: 1px solid var(--app-border-color);
+  }
 }
 
 .sidebar-header {
