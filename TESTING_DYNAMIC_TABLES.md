@@ -196,3 +196,4 @@ docker exec -i docpal-postgres psql -U docpal -d docpal -c "\dt $TABLE_NAME"
 - Add user to docker group: `sudo usermod -aG docker $USER`
 - Then `newgrp docker` or logout/login
 
+

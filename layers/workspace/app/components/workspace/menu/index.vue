@@ -346,6 +346,14 @@ provide(WorkspaceMenuContextKey, menuContext)
 const addItemPopover = ref()
 const addItemTarget = ref<HTMLElement | null>(null)
 
+// Table creation dialog
+const showCreateTableDialog = ref(false)
+const createTableForm = ref({
+  name: '',
+  description: '',
+  icon: '',
+})
+
 function openAddMenu(event: MouseEvent) {
   if (!props.isAdmin) return
   addItemTarget.value = event.currentTarget as HTMLElement
@@ -353,8 +361,58 @@ function openAddMenu(event: MouseEvent) {
 }
 
 async function handleAddItem(type: MenuItem['type']) {
-  await menuContext.addItem(null, type)
   addItemPopover.value?.close()
+  
+  if (type === 'table') {
+    // Open table creation dialog
+    createTableForm.value = { name: '', description: '', icon: '' }
+    showCreateTableDialog.value = true
+  } else {
+    // For other types (folder, view, dashboard), add directly
+    await menuContext.addItem(null, type)
+  }
+}
+
+async function handleCreateTable() {
+  if (!createTableForm.value.name.trim()) {
+    ElMessage.error('Table name is required')
+    return
+  }
+
+  try {
+    // Create table via API
+    const newTable = await $fetch(`/api/workspaces/${props.workspaceId}/tables`, {
+      method: 'POST',
+      body: {
+        name: createTableForm.value.name,
+        description: createTableForm.value.description || undefined,
+        icon: createTableForm.value.icon || undefined,
+      },
+    })
+
+    // Add to menu
+    const menuItem: MenuItem = {
+      id: newTable.id,
+      label: newTable.name,
+      slug: newTable.slug,
+      type: 'table',
+      order: menuState.value.items.length,
+      icon: newTable.icon,
+    }
+
+    menuState.value.items.push(menuItem)
+    await saveMenuToServer(menuState.value.items)
+
+    // Close dialog
+    showCreateTableDialog.value = false
+
+    // Navigate to table
+    ElMessage.success(`Table "${newTable.name}" created successfully`)
+    router.push(`/workspaces/${props.workspaceSlug}/tables/${newTable.slug}`)
+  } catch (error: any) {
+    console.error('Failed to create table:', error)
+    ElMessage.error(error.data?.message || 'Failed to create table')
+  }
 }
 </script>
 
@@ -376,20 +434,6 @@ async function handleAddItem(type: MenuItem['type']) {
 
     <!-- Menu Content -->
     <div class="menu-content">
-      <!-- Static Menu Items (non-draggable) -->
-      <div class="static-menu-items">
-        <div 
-          class="static-menu-item"
-          @click="router.push(`/workspaces/${workspaceSlug}/tables`)"
-        >
-          <Icon name="material-symbols:table-outline" />
-          <span>Tables</span>
-        </div>
-      </div>
-
-      <!-- Divider -->
-      <div v-if="menuContext.state.value.items.length > 0" class="menu-divider" />
-
       <!-- Empty State -->
       <div v-if="menuContext.state.value.items.length === 0" class="empty-state">
         <Icon name="material-symbols:folder-open-outline" size="48" />
@@ -435,6 +479,46 @@ async function handleAddItem(type: MenuItem['type']) {
         </div>
       </div>
     </CommonPopoverDialog>
+
+    <!-- Create Table Dialog -->
+    <el-dialog
+      v-model="showCreateTableDialog"
+      title="Create New Table"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-position="top">
+        <el-form-item label="Table Name" required>
+          <el-input
+            v-model="createTableForm.name"
+            placeholder="e.g. Projects, Customers, Tasks"
+            maxlength="100"
+            @keyup.enter="handleCreateTable"
+          />
+        </el-form-item>
+
+        <el-form-item label="Description">
+          <el-input
+            v-model="createTableForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="Optional description for this table"
+            maxlength="500"
+          />
+        </el-form-item>
+
+        <el-form-item label="Icon">
+          <CommonIconPickerInput v-model="createTableForm.icon" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="showCreateTableDialog = false">Cancel</el-button>
+        <el-button type="primary" @click="handleCreateTable">
+          Create Table
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -463,37 +547,6 @@ async function handleAddItem(type: MenuItem['type']) {
   flex: 1;
   overflow-y: auto;
   padding: var(--app-space-s);
-}
-
-.static-menu-items {
-  margin-bottom: var(--app-space-xs);
-}
-
-.static-menu-item {
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-s);
-  padding: var(--app-space-xs) var(--app-space-s);
-  border-radius: var(--app-border-radius-s);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--app-text-color-regular);
-  font-size: var(--app-font-size-s);
-
-  &:hover {
-    background: var(--el-fill-color-light);
-    color: var(--app-primary-color);
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-}
-
-.menu-divider {
-  height: 1px;
-  background: var(--app-border-color);
-  margin: var(--app-space-s) 0;
 }
 
 .empty-state {
