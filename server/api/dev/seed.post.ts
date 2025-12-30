@@ -3,6 +3,7 @@ import { db } from 'hub:db'
 import { users } from '~~/server/db/schema/users'
 import { companies } from '~~/server/db/schema/companies'
 import { companyMembers } from '~~/server/db/schema/company-members'
+import { workspaces } from '~~/server/db/schema/workspaces'
 import { hashPassword } from '~~/server/utils/password'
 import { generateUUID } from '~~/server/utils/uuid'
 
@@ -55,6 +56,19 @@ export default defineEventHandler(async () => {
     role: 'owner',
   })
 
+  // Create a default workspace
+  const workspaceId = generateUUID()
+  await db.insert(workspaces).values({
+    id: workspaceId,
+    name: 'Main Workspace',
+    slug: 'main',
+    description: 'Default workspace for testing',
+    icon: 'mdi:folder',
+    menu: [],
+    companyId: companyId,
+    createdBy: adminId,
+  })
+
   return {
     message: 'Seeded successfully',
     seeded: true,
@@ -62,6 +76,7 @@ export default defineEventHandler(async () => {
       adminEmail: 'admin@docpal.app',
       adminPassword: 'admin123',
       companySlug: 'demo',
+      workspaceSlug: 'main',
     },
   }
 })

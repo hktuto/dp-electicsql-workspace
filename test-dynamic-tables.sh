@@ -44,35 +44,52 @@ echo ""
 
 # 3. Get workspaces
 echo "3️⃣  Getting workspaces..."
-# First, we need to get the company from the user's companies
-COMPANY_ID=$(echo "$ME_RESPONSE" | jq -r '.companies[0].id')
-echo "Using company ID: $COMPANY_ID"
+# Get all workspaces from Electric SQL (it filters by user's access automatically)
+echo "Getting workspaces from Electric..."
+WORKSPACE_SHAPE=$(curl -s "$API_URL/electric/shape?table=workspaces")
+echo "Workspaces response:"
+echo "$WORKSPACE_SHAPE" | jq .
+echo ""
 
-# Query Electric SQL shape for workspaces
-echo "Getting workspace from Electric..."
-WORKSPACE_SHAPE=$(curl -s "$API_URL/electric/shape?table=workspaces&company_id=$COMPANY_ID")
-WORKSPACE_ID=$(echo "$WORKSPACE_SHAPE" | jq -r '.[0].id // empty')
+WORKSPACE_ID=$(echo "$WORKSPACE_SHAPE" | jq -r 'if type == "array" then .[0].id else empty end')
+COMPANY_ID=$(echo "$WORKSPACE_SHAPE" | jq -r 'if type == "array" then .[0].company_id else empty end')
 
-if [ -z "$WORKSPACE_ID" ]; then
+if [ -z "$WORKSPACE_ID" ] || [ "$WORKSPACE_ID" = "null" ]; then
   echo "⚠️  No workspace found. Creating one..."
+  
+  # Get company from company_members
+  COMPANY_MEMBERS=$(curl -s "$API_URL/electric/shape?table=company_members")
+  COMPANY_ID=$(echo "$COMPANY_MEMBERS" | jq -r 'if type == "array" then .[0].company_id else empty end')
+  
+  if [ -z "$COMPANY_ID" ] || [ "$COMPANY_ID" = "null" ]; then
+    # Fallback: get from companies table
+    COMPANIES=$(curl -s "$API_URL/electric/shape?table=companies")
+    COMPANY_ID=$(echo "$COMPANIES" | jq -r 'if type == "array" then .[0].id else empty end')
+  fi
+  
+  echo "Using company ID: $COMPANY_ID"
+  
   CREATE_WS_RESPONSE=$(curl -s -b /tmp/cookies.txt -X POST "$API_URL/workspaces" \
     -H "Content-Type: application/json" \
-    -d '{
-      "name": "Test Workspace",
-      "slug": "test-workspace",
-      "description": "Test workspace for dynamic tables",
-      "icon": "mdi:folder"
-    }')
+    -d "{
+      \"name\": \"Test Workspace\",
+      \"slug\": \"test-workspace\",
+      \"description\": \"Test workspace for dynamic tables\",
+      \"icon\": \"mdi:folder\"
+    }")
   
   echo "✅ Workspace created:"
   echo "$CREATE_WS_RESPONSE" | jq .
   WORKSPACE_ID=$(echo "$CREATE_WS_RESPONSE" | jq -r '.workspace.id')
+  COMPANY_ID=$(echo "$CREATE_WS_RESPONSE" | jq -r '.workspace.companyId')
   
   # Wait for Electric sync
+  echo "⏳ Waiting for Electric sync..."
   sleep 3
 fi
 
 echo "✅ Using workspace ID: $WORKSPACE_ID"
+echo "✅ Using company ID: $COMPANY_ID"
 echo ""
 
 # 4. Create a dynamic table
