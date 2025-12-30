@@ -148,7 +148,7 @@ function goBack() {
 </script>
 
 <template>
-  <WrapperMain>
+
   <div class="workspace-setting-page">
     <div v-if="loading" class="loading">
       <el-icon class="is-loading"><Loading /></el-icon>
@@ -330,7 +330,6 @@ function goBack() {
       </template>
     </el-dialog>
   </div>
-</WrapperMain>
 </template>
 
 <style scoped lang="scss">

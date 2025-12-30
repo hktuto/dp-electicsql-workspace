@@ -382,7 +382,7 @@ async function handleMenuChange(newItems: MenuItem[]) {
 // Navigate to menu item
 function navigateToItem(item: MenuItem) {
   const base = `/workspaces/${props.workspaceSlug}`
-  
+  console.log('navigateToItem', item)
   switch (item.type) {
     case 'folder':
       router.push(`${base}/folder/${item.id}`)
@@ -650,7 +650,7 @@ async function handleCreateTable() {
 .menu-content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--app-space-s);
+  padding: var(--app-space-xs);
 }
 
 .empty-state {

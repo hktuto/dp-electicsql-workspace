@@ -95,17 +95,7 @@ function handleCancelEdit() {
         <Icon name="material-symbols:drag-indicator" size="16" />
       </div>
 
-      <!-- Expand/Collapse Icon (folders only) -->
-      <div
-        v-if="item.type === 'folder'"
-        class="expand-icon"
-        @click.stop="handleToggle"
-      >
-        <Icon
-          :name="isExpanded ? 'material-symbols:expand-more' : 'material-symbols:chevron-right'"
-          size="18"
-        />
-      </div>
+
 
       <!-- Item Icon -->
       <div class="item-icon">
@@ -133,6 +123,17 @@ function handleCancelEdit() {
         >
           <Icon name="material-symbols:more-horiz" size="16" />
         </el-button>
+      </div>
+            <!-- Expand/Collapse Icon (folders only) -->
+            <div
+        v-if="item.type === 'folder'"
+        class="expand-icon"
+        @click.stop="handleToggle"
+      >
+        <Icon
+          :name="isExpanded ? 'material-symbols:expand-more' : 'material-symbols:chevron-right'"
+          size="18"
+        />
       </div>
     </div>
 
@@ -166,6 +167,8 @@ function handleCancelEdit() {
 }
 
 .drag-handle {
+  position: absolute;
+  left:-4px;
   display: flex;
   align-items: center;
   justify-content: center;

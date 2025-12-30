@@ -169,6 +169,9 @@ function handleClick(item: MenuItem) {
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  img{
+    max-height: calc(var(--app-header-height) - var(--app-space-s) * 2); 
+  }
 }
 
 .logo-expand {
