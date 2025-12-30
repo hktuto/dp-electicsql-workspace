@@ -4,9 +4,11 @@ import { dataTables, dataTableColumns, tableMigrations, workspaces } from 'hub:d
 import { generateTableName, generateCreateTableSql, executeSql, validateTableName } from '~~/server/utils/dynamic-table'
 
 export default defineEventHandler(async (event) => {
-  // Auth check
-  const user = await requireAuth(event)
-
+  console.log('create table')
+  
+  // Get user from context (set by auth middleware)
+  const user = event.context.user
+  
   const workspaceId = getRouterParam(event, 'workspaceId')
   if (!workspaceId) {
     throw createError({ statusCode: 400, message: 'Workspace ID is required' })
@@ -60,7 +62,7 @@ export default defineEventHandler(async (event) => {
       companyId: workspace.companyId,
       description,
       icon,
-      createdBy: user.userId,
+      createdBy: user?.userId || null,
     }).returning()
 
     // Store migration history

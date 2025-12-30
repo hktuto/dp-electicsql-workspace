@@ -404,6 +404,7 @@ defineExpose({
       :width="isMobile ? '90%' : width"
       :close-on-click-modal="closeOnClickModal"
       :show-close="showClose"
+      append-to-body
       @open="emit('open')"
       @close="emit('close')"
       @opened="emit('opened')"
