@@ -9,7 +9,7 @@
 
 // Schema version - increment this when schema changes
 // Format: MAJOR.MINOR.PATCH or timestamp-based (e.g., '20251229_001')
-const SCHEMA_VERSION = '3.0.0' // Bumped for workspaces table addition
+const SCHEMA_VERSION = '4.0.0' // Bumped for dynamic tables (Phase 4.0)
 
 export default defineEventHandler(() => {
   return {
@@ -22,6 +22,9 @@ export default defineEventHandler(() => {
       'company_members',
       'company_invites',
       'workspaces', // Added in Phase 3.0
+      'data_tables', // Added in Phase 4.0
+      'data_table_columns', // Added in Phase 4.0
+      'table_migrations', // Added in Phase 4.0
     ],
   }
 })

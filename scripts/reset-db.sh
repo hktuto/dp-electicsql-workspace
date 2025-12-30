@@ -88,7 +88,10 @@ CREATE PUBLICATION electric_publication FOR TABLE
   companies,
   company_members,
   company_invites,
-  workspaces;
+  workspaces,
+  data_tables,
+  data_table_columns,
+  table_migrations;
 SELECT 'Electric publication created for tables:' as info;
 SELECT tablename FROM pg_publication_tables WHERE pubname = 'electric_publication';
 EOF

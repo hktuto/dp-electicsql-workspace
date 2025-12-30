@@ -18,6 +18,9 @@ const SYNCED_TABLES = [
   'company_members',
   'company_invites',
   'workspaces', // Added in Phase 3.0
+  'data_tables', // Added in Phase 4.0
+  'data_table_columns', // Added in Phase 4.0
+  'table_migrations', // Added in Phase 4.0
 ]
 
 // Column type mapping from PostgreSQL to PGLite-compatible types
