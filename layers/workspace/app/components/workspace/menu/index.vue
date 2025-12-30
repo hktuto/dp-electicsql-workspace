@@ -378,7 +378,9 @@ async function handleMenuChange(newItems: MenuItem[]) {
   // Debounced save to server
   debouncedSave(orderedMenu)
 }
-
+function openSetting(slug: string, type: MenuItem['type']) {
+  router.push(`/workspaces/${props.workspaceSlug}/${type}/${slug}/setting`)
+}
 // Navigate to menu item
 function navigateToItem(item: MenuItem) {
   const base = `/workspaces/${props.workspaceSlug}`
@@ -413,6 +415,7 @@ const menuContext: MenuContext = {
   addItem,
   updateMenu,
   navigateToItem,
+  openSetting,
 }
 
 // Provide context to children
@@ -523,18 +526,17 @@ async function handleCreateTable() {
 <template>
   <div class="workspace-menu">
     <!-- Header -->
-    <div class="menu-header">
-      <h3>Navigation</h3>
-      <el-button
-        v-if="isAdmin"
-        text
-        circle
-        size="small"
-        @click="openAddMenu"
-      >
-        <Icon name="material-symbols:add" />
-      </el-button>
-    </div>
+    <Teleport defer to="#workspace-sidebar-actions-start">
+        <el-button
+          v-if="isAdmin"
+          text
+          circle
+          size="small"
+          @click="openAddMenu"
+        >
+          <Icon name="material-symbols:add" />
+        </el-button>
+      </Teleport>
 
     <!-- Menu Content -->
     <div class="menu-content">
@@ -637,7 +639,7 @@ async function handleCreateTable() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--app-space-m);
+  padding: var(--app-space-xs);
   border-bottom: 1px solid var(--app-border-color);
 
   h3 {
@@ -684,7 +686,7 @@ async function handleCreateTable() {
   display: flex;
   align-items: center;
   gap: var(--app-space-s);
-  padding: var(--app-space-s) var(--app-space-m);
+  padding: var(--app-space-xs);
   border-radius: var(--app-border-radius-s);
   cursor: pointer;
   transition: background-color 0.2s ease;

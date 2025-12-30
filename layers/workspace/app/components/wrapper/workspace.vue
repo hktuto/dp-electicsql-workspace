@@ -47,6 +47,18 @@
                 </div>
                 <div class="workspace-name">{{ workspace.name }}</div>
               </div>
+              <div class="workspace-sidebar-actions">
+                <div id="workspace-sidebar-actions-start"></div>
+                <el-button
+                    text
+                    circle
+                    size="small"
+                    @click="goToSettings"
+                  >
+                <Icon name="material-symbols:settings-outline-rounded" />
+                </el-button>
+                <div id="workspace-sidebar-actions-end"></div> 
+              </div>
             </div>
             
             <!-- Body: Menu -->
@@ -59,13 +71,6 @@
               />
             </div>
             
-            <!-- Footer: Actions -->
-            <div class="sidebar-footer">
-              <div class="footer-item" @click="goToSettings">
-                <Icon name="material-symbols:settings-outline-rounded" />
-                <span>Settings</span>
-              </div>
-            </div>
           </aside>
         </el-splitter-panel>
 
@@ -199,6 +204,19 @@
               </div>
               <div class="workspace-name">{{ workspace.name }}</div>
             </div>
+            <div class="workspace-sidebar-actions">
+              <div id="workspace-sidebar-actions-start"></div>
+
+                <el-button
+                    text
+                    circle
+                    size="small"
+                    @click="goToSettings"
+                  >
+                <Icon name="material-symbols:settings-outline-rounded" />
+                </el-button>
+              <div id="workspace-sidebar-actions-end"></div> 
+            </div>
           </div>
           
           <!-- Body: Menu -->
@@ -210,14 +228,7 @@
               :is-admin="isCompanyAdmin"
             />
           </div>
-          
-          <!-- Footer: Actions -->
-          <div class="sidebar-footer">
-            <div class="footer-item" @click="goToSettings">
-              <Icon name="material-symbols:settings-outline-rounded" />
-              <span>Settings</span>
-            </div>
-          </div>
+
         </aside>
 
         <!-- Workspace Content -->
@@ -375,7 +386,7 @@ const viewType = computed(() => {
   const params = props.route
   if (params.length === 0) return 'home'
   if (params[0] === 'setting') return 'settings'
-  if (params[0] === 'tables' && params.length >= 2) {
+  if (params[0] === 'table' && params.length >= 2) {
     // /workspaces/:slug/tables/:tableSlug - table view
     return params[2] === 'setting' ? 'table-settings' : 'table'
   }
@@ -420,7 +431,7 @@ const breadcrumbs = computed(() => {
     // Table: show table name from slug
     
     const label = menuItem?.label || params[1]
-    items.push({ label, path: `/workspaces/${props.slug}/tables/${params[1]}` })
+    items.push({ label, path: `/workspaces/${props.slug}/table/${params[1]}` })
     if (params[2] === 'setting') {
       items.push({ label: 'Settings', path: '' })
     }
@@ -666,10 +677,21 @@ watch(() => props.route, () => {
 .sidebar-header {
   height: var(--app-header-height);
   min-height: var(--app-header-height);
-  padding: 0 var(--app-space-m);
+  padding: 0 var(--app-space-s);
   display: flex;
+  justify-content: flex-start;
   align-items: center;
   border-bottom: 1px solid var(--app-border-color);
+  > .workspace-info{
+    flex: 1 0 auto;
+  }
+}
+.workspace-sidebar-actions{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0;
+  flex-shrink: 0;
 }
 
 .workspace-info {

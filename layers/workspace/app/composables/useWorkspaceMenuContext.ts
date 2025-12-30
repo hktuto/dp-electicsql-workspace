@@ -21,6 +21,7 @@ export interface MenuContext {
   addItem: (parentId: string | null, type: MenuItem['type']) => Promise<void>
   updateMenu: (newMenu: MenuItem[]) => Promise<void>
   navigateToItem: (item: MenuItem) => void
+  openSetting: (slug: string, type: MenuItem['type']) => void
 }
 
 export const WorkspaceMenuContextKey: InjectionKey<MenuContext> = Symbol('WorkspaceMenuContext')

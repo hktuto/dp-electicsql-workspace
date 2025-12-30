@@ -319,8 +319,9 @@ watch(() => showColumnDialog.value, (val) => {
 <style scoped lang="scss">
 .table-settings-wrapper {
   padding: var(--app-space-l);
-  max-width: 1000px;
+  max-width: var(--app-content-max-width);
   margin: 0 auto;
+  // background-color: var(--app-paper);
 }
 
 .settings-header {

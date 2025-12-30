@@ -8,12 +8,11 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
 const menuContext = useWorkspaceMenuContext()
 const popoverRef = ref()
 
-function open(target: HTMLElement) {
-  popoverRef.value?.open(target)
+function open(target: HTMLElement, highlight?: HTMLElement) {
+  popoverRef.value?.open(target, highlight)
 }
 
 function close() {
@@ -49,7 +48,11 @@ async function handleDelete() {
     // User cancelled
   })
 }
-
+async function handleEditSetting(type: MenuItem['type']) {
+  
+  await menuContext.openSetting(props.item.slug, type)
+  close()
+}
 async function handleAddItem(type: MenuItem['type']) {
   await menuContext.addItem(props.item.id, type)
   close()
@@ -91,7 +94,12 @@ defineExpose({ open, close })
           <span>Add Dashboard</span>
         </div>
       </template>
-
+      <template v-if="item.type === 'table'">
+        <div class="action-item" @click="handleEditSetting('table')">
+          <Icon name="material-symbols:settings-outline" />
+          <span>table settings</span>
+        </div>
+      </template>
       <!-- Delete -->
       <template v-if="isAdmin">
         <div class="action-divider" />

@@ -264,7 +264,11 @@ async function open(target?: HTMLElement, highlight?: HTMLElement) {
   // Desktop with target → use positioned popover
   emit('open')
   visible.value = true
-  
+  if(highlightElement.value){
+    highlightElement.value.classList.add('highlight-element')
+  }else if(targetElement.value){
+    targetElement.value.classList.add('highlight-element')
+  }
   await nextTick()
   
   if (!contentRef.value) return
@@ -368,7 +372,13 @@ useEventListener(window, 'scroll', () => {
     }
   }
 }, { passive: true })
-
+onUnmounted(() => {
+  if(highlightElement.value){
+    highlightElement.value.classList.remove('highlight-element')
+  }else if(targetElement.value){
+    targetElement.value.classList.remove('highlight-element')
+  }
+})
 // Expose methods
 defineExpose({
   open,
@@ -423,7 +433,17 @@ defineExpose({
       <slot />
     </el-dialog>
 </template>
-
+<style>
+  .highlight-element{
+    transition: all 0.3s ease;
+    outline: initial ;
+    box-shadow: initial ;
+  }
+  .focus-outline{
+    outline: 2px solid var(--app-primary-alpha-50) !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  }
+</style>
 <style scoped lang="scss">
 .custom-popover {
   position: fixed;

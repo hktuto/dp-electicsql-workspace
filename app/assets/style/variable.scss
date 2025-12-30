@@ -145,7 +145,7 @@
   --app-info-5: hsl(var(--app-info-h), var(--app-info-s), calc(var(--app-info-l) * 0.50));
   --app-info-6: hsl(var(--app-info-h), var(--app-info-s), calc(var(--app-info-l) * 0.25));
 
-  --app-bg: radial-gradient(72% 72% at 2% -5%, #ddf2f7 0%, #dae7f1 100%);
+  --app-bg: radial-gradient(72% 72% at 2% -5%, #e4f1f5 0%, #dae7f1 100%);
 
   /* Simplified Grey Scale - 11 levels for better consistency */
   --app-grey-50: hsl(var(--app-grey-hue), var(--app-grey-saturation), 5%);
@@ -190,6 +190,7 @@
   --app-fill-color-darker: var(--app-grey-800);       /* Darker fill */
   --app-fill-color-blank: var(--app-paper);           /* Blank fill */
   
+  
   // generate white and black color
   --app-paper: #fff;
   --app-black: #000;
@@ -216,6 +217,8 @@
   --app-border-radius-xxl: 4rem;
   --app-border-radius-max: 10e5px;
 
+  // app content max width setting
+  --app-content-max-width: 800px;
   // set app space
   --app-space-xxs: 0.2rem;
   --app-space-xs: 0.4rem;

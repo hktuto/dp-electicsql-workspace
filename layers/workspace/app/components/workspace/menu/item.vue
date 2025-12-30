@@ -62,7 +62,7 @@ const itemContentRef = ref<HTMLElement>()
 // Handle actions menu
 function handleActionsClick(event: MouseEvent) {
   event.stopPropagation()
-  actionsPopover.value?.open(itemContentRef.value)
+  actionsPopover.value?.open(event.currentTarget as HTMLElement, itemContentRef.value as HTMLElement)
 }
 
 // Handle save from label editor
@@ -92,14 +92,14 @@ function handleCancelEdit() {
         @mousedown.stop
         @click.stop
       >
-        <Icon name="material-symbols:drag-indicator" size="16" />
+        <Icon name="material-symbols:drag-indicator"  />
       </div>
 
 
 
       <!-- Item Icon -->
       <div class="item-icon">
-        <Icon :name="itemIcon" size="18" />
+        <Icon :name="itemIcon"  />
       </div>
 
       <!-- Label or Label Editor -->
@@ -192,8 +192,7 @@ function handleCancelEdit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  font-size: var(--app-font-size-m);
   color: var(--app-text-color-secondary);
   cursor: pointer;
   transition: transform 0.2s ease;
@@ -207,8 +206,7 @@ function handleCancelEdit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  font-size: var(--app-font-size-m);
   color: var(--app-text-color-secondary);
   flex-shrink: 0;
 }
