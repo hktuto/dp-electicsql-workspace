@@ -3,6 +3,7 @@
 
 *{
   box-sizing: border-box;
+  font-family: var(--app-font-family);
 }
 
 html,
@@ -41,6 +42,16 @@ body {
       background-color: var(--app-primary-alpha-30);
       color: var(--app-primary-color);
   }
+}
+
+// basic global style
+
+h1{
+  font-size: var(--app-font-size-xl);
+  font-weight: 900;
+  line-height: var(--app-line-height);
+  margin: 0;
+  padding: 0;
 }
 
 

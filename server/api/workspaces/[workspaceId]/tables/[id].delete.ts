@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm'
+import { db } from 'hub:db'
 import { dataTables } from 'hub:db:schema'
 import { generateDropTableSql, executeSql } from '~~/server/utils/dynamic-table'
 
@@ -13,13 +14,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Workspace ID and Table ID are required' })
   }
 
-  const db = hubDatabase()
-
   // Verify table exists and belongs to workspace
-  const existing = await db.select()
+  const [existing] = await db.select()
     .from(dataTables)
     .where(eq(dataTables.id, tableId))
-    .get()
+    .limit(1)
 
   if (!existing) {
     throw createError({ statusCode: 404, message: 'Table not found' })

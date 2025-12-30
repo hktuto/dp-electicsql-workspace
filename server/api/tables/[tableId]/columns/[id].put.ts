@@ -1,4 +1,5 @@
 import { eq, desc } from 'drizzle-orm'
+import { db } from 'hub:db'
 import { dataTables, dataTableColumns, tableMigrations } from 'hub:db:schema'
 import { generateAlterColumnSql, generateRenameColumnSql, executeSql, validateColumnName } from '~~/server/utils/dynamic-table'
 
@@ -28,13 +29,11 @@ export default defineEventHandler(async (event) => {
     validationRules,
   } = body
 
-  const db = hubDatabase()
-
   // Get existing column
-  const existingColumn = await db.select()
+  const [existingColumn] = await db.select()
     .from(dataTableColumns)
     .where(eq(dataTableColumns.id, columnId))
-    .get()
+    .limit(1)
 
   if (!existingColumn) {
     throw createError({ statusCode: 404, message: 'Column not found' })
@@ -45,7 +44,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Get table metadata
-  const table = await db.select().from(dataTables).where(eq(dataTables.id, tableId)).get()
+  const [table] = await db.select().from(dataTables).where(eq(dataTables.id, tableId)).limit(1)
   if (!table) {
     throw createError({ statusCode: 404, message: 'Table not found' })
   }
@@ -73,11 +72,11 @@ export default defineEventHandler(async (event) => {
         }
 
         // Check for name conflicts
-        const conflict = await db.select()
+        const [conflict] = await db.select()
           .from(dataTableColumns)
           .where(eq(dataTableColumns.dataTableId, tableId))
           .where(eq(dataTableColumns.name, name))
-          .get()
+          .limit(1)
 
         if (conflict && conflict.id !== columnId) {
           throw createError({ statusCode: 400, message: 'Column name already exists' })
@@ -125,11 +124,11 @@ export default defineEventHandler(async (event) => {
       await executeSql(migrationSql)
 
       // Get next version number
-      const lastMigration = await db.select()
+      const [lastMigration] = await db.select()
         .from(tableMigrations)
         .where(eq(tableMigrations.dataTableId, tableId))
         .orderBy(desc(tableMigrations.version))
-        .get()
+        .limit(1)
       
       const nextVersion = (lastMigration?.version || 0) + 1
 
@@ -145,7 +144,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Update column metadata
-    const updated = await db.update(dataTableColumns)
+    const [updated] = await db.update(dataTableColumns)
       .set({
         ...(name && { name }),
         ...(label && { label }),
@@ -162,7 +161,6 @@ export default defineEventHandler(async (event) => {
       })
       .where(eq(dataTableColumns.id, columnId))
       .returning()
-      .get()
 
     return {
       success: true,

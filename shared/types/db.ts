@@ -23,4 +23,4 @@ export type MenuItem = {
 }
 
 // Re-export data-table types
-export type { ColumnType, ColumnConfig, ValidationRules } from './data-table'
+// export type { ColumnType, ColumnConfig, ValidationRules } from './data-table'

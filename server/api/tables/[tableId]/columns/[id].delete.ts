@@ -1,4 +1,5 @@
 import { eq, desc } from 'drizzle-orm'
+import { db } from 'hub:db'
 import { dataTables, dataTableColumns, tableMigrations } from 'hub:db:schema'
 import { generateDropColumnSql, executeSql } from '~~/server/utils/dynamic-table'
 
@@ -13,13 +14,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Table ID and Column ID are required' })
   }
 
-  const db = hubDatabase()
-
   // Get existing column
-  const existingColumn = await db.select()
+  const [existingColumn] = await db.select()
     .from(dataTableColumns)
     .where(eq(dataTableColumns.id, columnId))
-    .get()
+    .limit(1)
 
   if (!existingColumn) {
     throw createError({ statusCode: 404, message: 'Column not found' })
@@ -30,7 +29,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Get table metadata
-  const table = await db.select().from(dataTables).where(eq(dataTables.id, tableId)).get()
+  const [table] = await db.select().from(dataTables).where(eq(dataTables.id, tableId)).limit(1)
   if (!table) {
     throw createError({ statusCode: 404, message: 'Table not found' })
   }
@@ -41,11 +40,11 @@ export default defineEventHandler(async (event) => {
     await executeSql(dropSql)
 
     // Get next version number
-    const lastMigration = await db.select()
+    const [lastMigration] = await db.select()
       .from(tableMigrations)
       .where(eq(tableMigrations.dataTableId, tableId))
       .orderBy(desc(tableMigrations.version))
-      .get()
+      .limit(1)
     
     const nextVersion = (lastMigration?.version || 0) + 1
 

@@ -1,4 +1,5 @@
 import { eq, desc } from 'drizzle-orm'
+import { db } from 'hub:db'
 import { dataTables, dataTableColumns, tableMigrations } from 'hub:db:schema'
 import { generateAddColumnSql, executeSql, validateColumnName } from '~~/server/utils/dynamic-table'
 
@@ -37,20 +38,18 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const db = hubDatabase()
-
   // Get table metadata
-  const table = await db.select().from(dataTables).where(eq(dataTables.id, tableId)).get()
+  const [table] = await db.select().from(dataTables).where(eq(dataTables.id, tableId)).limit(1)
   if (!table) {
     throw createError({ statusCode: 404, message: 'Table not found' })
   }
 
   // Check if column name already exists
-  const existing = await db.select()
+  const [existing] = await db.select()
     .from(dataTableColumns)
     .where(eq(dataTableColumns.dataTableId, tableId))
     .where(eq(dataTableColumns.name, name))
-    .get()
+    .limit(1)
 
   if (existing) {
     throw createError({ statusCode: 400, message: 'Column name already exists' })
@@ -70,11 +69,11 @@ export default defineEventHandler(async (event) => {
     await executeSql(addColumnSql)
 
     // Get next version number
-    const lastMigration = await db.select()
+    const [lastMigration] = await db.select()
       .from(tableMigrations)
       .where(eq(tableMigrations.dataTableId, tableId))
       .orderBy(desc(tableMigrations.version))
-      .get()
+      .limit(1)
     
     const nextVersion = (lastMigration?.version || 0) + 1
 
@@ -89,7 +88,7 @@ export default defineEventHandler(async (event) => {
     })
 
     // Create column metadata
-    const newColumn = await db.insert(dataTableColumns).values({
+    const [newColumn] = await db.insert(dataTableColumns).values({
       dataTableId: tableId,
       workspaceId: table.workspaceId,
       companyId: table.companyId,
@@ -104,7 +103,7 @@ export default defineEventHandler(async (event) => {
       isPrimaryDisplay,
       config,
       validationRules,
-    }).returning().get()
+    }).returning()
 
     return {
       success: true,

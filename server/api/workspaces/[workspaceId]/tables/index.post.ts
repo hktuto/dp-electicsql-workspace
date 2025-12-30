@@ -1,11 +1,12 @@
 import { eq } from 'drizzle-orm'
+import { db } from 'hub:db'
 import { dataTables, dataTableColumns, tableMigrations, workspaces } from 'hub:db:schema'
 import { generateTableName, generateCreateTableSql, executeSql, validateTableName } from '~~/server/utils/dynamic-table'
 
 export default defineEventHandler(async (event) => {
   // Auth check
-  const authUser = await requireAuth(event)
-  
+  const user = await requireAuth(event)
+
   const workspaceId = getRouterParam(event, 'workspaceId')
   if (!workspaceId) {
     throw createError({ statusCode: 400, message: 'Workspace ID is required' })
@@ -18,10 +19,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Name and slug are required' })
   }
 
-  const db = hubDatabase()
-
   // Get workspace to verify access and get companyId
-  const workspace = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId)).get()
+  const [workspace] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1)
   if (!workspace) {
     throw createError({ statusCode: 404, message: 'Workspace not found' })
   }
@@ -33,7 +32,7 @@ export default defineEventHandler(async (event) => {
   let tableName = generateTableName()
   let attempts = 0
   while (attempts < 10) {
-    const existing = await db.select().from(dataTables).where(eq(dataTables.tableName, tableName)).get()
+    const [existing] = await db.select().from(dataTables).where(eq(dataTables.tableName, tableName)).limit(1)
     if (!existing) break
     tableName = generateTableName()
     attempts++
@@ -53,7 +52,7 @@ export default defineEventHandler(async (event) => {
     await executeSql(createTableSql)
 
     // Create metadata record
-    const newTable = await db.insert(dataTables).values({
+    const [newTable] = await db.insert(dataTables).values({
       name,
       slug,
       tableName,
@@ -61,8 +60,8 @@ export default defineEventHandler(async (event) => {
       companyId: workspace.companyId,
       description,
       icon,
-      createdBy: authUser.userId,
-    }).returning().get()
+      createdBy: user.userId,
+    }).returning()
 
     // Store migration history
     await db.insert(tableMigrations).values({

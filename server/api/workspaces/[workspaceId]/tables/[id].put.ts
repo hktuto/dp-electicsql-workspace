@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm'
+import { db } from 'hub:db'
 import { dataTables } from 'hub:db:schema'
 
 export default defineEventHandler(async (event) => {
@@ -15,13 +16,11 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { name, slug, description, icon, formJson, cardJson, dashboardJson, listJson } = body
 
-  const db = hubDatabase()
-
   // Verify table exists and belongs to workspace
-  const existing = await db.select()
+  const [existing] = await db.select()
     .from(dataTables)
     .where(eq(dataTables.id, tableId))
-    .get()
+    .limit(1)
 
   if (!existing) {
     throw createError({ statusCode: 404, message: 'Table not found' })

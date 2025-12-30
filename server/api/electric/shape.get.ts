@@ -168,7 +168,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  console.log('[Electric Proxy] Forwarding request:', originUrl.toString())
+  // console.log('[Electric Proxy] Forwarding request:', originUrl.toString())
 
   try {
     // Forward request to Electric
