@@ -31,22 +31,22 @@ See `docs/REQUIRMENT/20251230_wrapper_design.md`
 - [x] Responsive behavior:
   - Desktop: aside element, stick to left
   - Mobile: toggle button (bottom-left), slide-in menu
-- [x] Use container queries (not media queries)
+- [x] Use ResizeObserver for responsive (container queries can't style container itself)
 
 ### 3.2.2: Workspace Wrapper (`WrapperWorkspace`)
 
-- [x] Create `app/components/wrapper/workspace.vue`
+- [x] Create `layers/workspace/app/components/wrapper/workspace.vue`
 - [x] Layout:
   - Left: Workspace Menu
   - Right: Header + Content
 - [x] Header structure:
   - Breadcrumb (left)
   - Header right with teleport target ID for action buttons
-- [x] Content area renders based on route
+- [x] Content area renders based on route prop
 - [x] Wrapped by `WrapperMain`
 - [x] Responsive workspace menu:
   - Toggle button in workspace header
-  - Use container queries
+  - Use ResizeObserver for responsive
 
 ### 3.2.3: Workspace Catch-All Route
 
@@ -61,19 +61,55 @@ See `docs/REQUIRMENT/20251230_wrapper_design.md`
 
 ### 3.2.4: Workspace Menu Refinement
 
-- [x] Move from `WorkspaceDetail` into `WrapperWorkspace` sidebar slot
+- [x] Move into `WrapperWorkspace` sidebar
 - [x] Structure:
   - Top: Workspace name/icon
   - Middle: Navigation menu (folders, tables, views, dashboards)
   - Footer: Settings, other actions
 - [x] Responsive: toggle in header on mobile
+- [x] Click to navigate to folder/view/dashboard
 
-### 3.2.5: Cleanup & Testing
+### 3.2.5: Header Standardization
+
+- [x] Use `var(--app-header-height)` for all headers
+- [x] Main menu header, workspace sidebar header, workspace content header
+
+### 3.2.6: Cleanup & Testing
 
 - [x] Remove old workspace page wrappers (`[slug].vue`, `[slug]/setting.vue`)
-- [ ] Test all routes work correctly
-- [ ] Test responsive behavior at different sizes
-- [ ] Ensure container queries work properly
+- [x] Move workspace wrapper to workspace layer
+- [x] Test all routes work correctly
+- [x] Test responsive behavior at different sizes
+
+---
+
+## Key Fixes & Learnings
+
+### useState for Workspace Persistence
+
+The workspace data was resetting on sub-route navigation because `ref()` resets when component remounts. Fixed by using `useState()`:
+
+```typescript
+// Before (would reset on route change)
+const workspace = ref<Workspace | null>(null)
+
+// After (persists across route changes)
+const workspace = useState<Workspace | null>('currentworkspace', () => null)
+```
+
+### ResizeObserver vs Container Queries
+
+Container queries (`@container`) cannot style the container element itself, only descendants. For responsive layout changes on the container, use ResizeObserver + CSS classes:
+
+```typescript
+resizeObserver = new ResizeObserver((entries) => {
+  isMobileView.value = entries[0].contentRect.width < 768
+})
+```
+
+### Transform for Stacking Context
+
+For `position: absolute` menus to stay within wrapper bounds, add `transform: translateZ(0)` to create a new stacking context.
 
 ---
 
@@ -81,19 +117,19 @@ See `docs/REQUIRMENT/20251230_wrapper_design.md`
 
 ```
 WrapperMain
-├── MainMenu
+├── MainMenu (CommonMenu)
 │   ├── Logo
 │   ├── MenuItems
-│   └── Footer (UserProfileMenu, etc.)
+│   └── Footer (UserProfileMenu, toggle)
 └── <slot /> (Content)
     └── WrapperWorkspace (for workspace routes)
-        ├── WorkspaceMenu
+        ├── WorkspaceSidebar
         │   ├── WorkspaceName
-        │   ├── NavigationMenu
+        │   ├── WorkspaceMenu (navigation)
         │   └── Footer (Settings)
         └── WorkspaceContent
             ├── Header (Breadcrumb + Actions)
-            └── <component :is="currentView" />
+            └── Route-based content
 ```
 
 ---
@@ -110,38 +146,27 @@ WrapperMain
 
 ---
 
-## Container Query Pattern
+## File Locations
 
-```scss
-.wrapper {
-  container-type: inline-size;
-  container-name: wrapper;
-}
-
-@container wrapper (max-width: 768px) {
-  .menu {
-    // Mobile styles
-  }
-}
-
-@container wrapper (min-width: 769px) {
-  .menu {
-    // Desktop styles
-  }
-}
-```
+| Component | Location |
+|-----------|----------|
+| WrapperMain | `app/components/wrapper/main.vue` |
+| CommonMenu | `app/components/common/menu/index.vue` |
+| WrapperWorkspace | `layers/workspace/app/components/wrapper/workspace.vue` |
+| WorkspaceMenu | `layers/workspace/app/components/workspace/menu/index.vue` |
+| Catch-all route | `app/pages/workspaces/[slug]/[...all].vue` |
 
 ---
 
 ## Completion Criteria
 
-- [ ] WrapperMain with responsive main menu
-- [ ] WrapperWorkspace with responsive workspace menu
-- [ ] Catch-all route handling all workspace sub-routes
-- [ ] All responsive using container queries
-- [ ] Clean, maintainable code structure
+- [x] WrapperMain with responsive main menu
+- [x] WrapperWorkspace with responsive workspace menu
+- [x] Catch-all route handling all workspace sub-routes
+- [x] All responsive using ResizeObserver + CSS classes
+- [x] Clean, maintainable code structure
+- [x] Standardized header heights
 
 ---
 
-## Status: 🟡 In Progress
-
+## Status: ✅ COMPLETE (2024-12-30)

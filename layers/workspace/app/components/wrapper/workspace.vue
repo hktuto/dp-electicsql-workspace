@@ -1,6 +1,6 @@
 <template>
   <WrapperMain>
-    <div v-if="loading" class="loading-state">
+    <div v-if="!workspace && loading" class="loading-state">
       <el-icon class="is-loading"><Loading /></el-icon>
       <span>Loading workspace...</span>
     </div>
@@ -191,7 +191,7 @@ let resizeObserver: ResizeObserver | null = null
 const isMenuOpen = ref(false)
 
 // Workspace data
-const workspace = ref<Workspace | null>(null)
+const workspace = useState<Workspace | null>('currentworkspace', () => null)
 const loading = ref(true)
 
 // Parse route to determine view
@@ -332,7 +332,7 @@ onUnmounted(() => {
 
 // Watch for company becoming available
 watch(() => currentCompany.value?.id, (newId) => {
-  if (newId && !workspace.value) {
+  if (newId && !workspace.value || newId !== workspace.value?.companyId) {
     loadWorkspace()
   }
 }, { immediate: true })

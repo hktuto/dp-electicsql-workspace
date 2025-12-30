@@ -2,6 +2,9 @@
 // Auth is handled by global middleware (auth.global.ts)
 const route = useRoute()
 const slug = route.params.slug as string
+definePageMeta({
+  layout: false,
+})
 </script>
 
 <template>

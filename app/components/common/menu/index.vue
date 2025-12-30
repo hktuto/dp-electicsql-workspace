@@ -230,7 +230,7 @@ function handleClick(item: MenuItem) {
   display: flex;
   align-items: center;
   gap: var(--app-space-s);
-  padding: var(--app-space-s);
+  padding: var(--app-space-xs);
   border-radius: var(--app-border-radius-s);
   color: var(--app-grey-400);
   font-size: var(--app-font-size-m);
