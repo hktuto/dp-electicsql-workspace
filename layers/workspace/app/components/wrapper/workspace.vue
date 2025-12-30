@@ -123,7 +123,24 @@
             </div>
           </template>
 
-          <!-- View (Table) View -->
+          <!-- Tables List -->
+          <template v-else-if="viewType === 'tables'">
+            <DataTableList :workspace-id="workspace.id" />
+          </template>
+
+          <!-- Single Table View -->
+          <template v-else-if="viewType === 'table'">
+            <div class="placeholder-view">
+              <el-empty description="Table View">
+                <template #description>
+                  <p>Table: {{ subSlug }}</p>
+                  <p>Data grid coming soon (Phase 4 part 2)</p>
+                </template>
+              </el-empty>
+            </div>
+          </template>
+
+          <!-- View View -->
           <template v-else-if="viewType === 'view'">
             <div class="placeholder-view">
               <el-empty description="Table View">
@@ -199,6 +216,14 @@ const viewType = computed(() => {
   const params = props.route
   if (params.length === 0) return 'home'
   if (params[0] === 'setting') return 'settings'
+  if (params[0] === 'tables') {
+    // /workspaces/:slug/tables - table list
+    if (params.length === 1) return 'tables'
+    // /workspaces/:slug/tables/:tableSlug - table view
+    if (params.length >= 2) {
+      return params[2] === 'setting' ? 'table-settings' : 'table'
+    }
+  }
   if (params[0] === 'folder' && params.length >= 2) {
     return params[2] === 'setting' ? 'folder-settings' : 'folder'
   }
@@ -224,6 +249,14 @@ const breadcrumbs = computed(() => {
   const params = props.route
   if (params[0] === 'setting') {
     items.push({ label: 'Settings', path: '' })
+  } else if (params[0] === 'tables') {
+    items.push({ label: 'Tables', path: `/workspaces/${props.slug}/tables` })
+    if (params[1]) {
+      items.push({ label: params[1], path: '' })
+      if (params[2] === 'setting') {
+        items.push({ label: 'Settings', path: '' })
+      }
+    }
   } else if (params[0] === 'folder' && params[1]) {
     items.push({ label: 'Folder', path: '' })
     if (params[2] === 'setting') {

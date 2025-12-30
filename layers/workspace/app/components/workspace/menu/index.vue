@@ -376,6 +376,21 @@ async function handleAddItem(type: MenuItem['type']) {
 
     <!-- Menu Content -->
     <div class="menu-content">
+      <!-- Static Menu Items (non-draggable) -->
+      <div class="static-menu-items">
+        <div 
+          class="static-menu-item"
+          @click="router.push(`/workspaces/${workspaceSlug}/tables`)"
+        >
+          <Icon name="material-symbols:table-outline" />
+          <span>Tables</span>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div v-if="menuContext.state.value.items.length > 0" class="menu-divider" />
+
+      <!-- Empty State -->
       <div v-if="menuContext.state.value.items.length === 0" class="empty-state">
         <Icon name="material-symbols:folder-open-outline" size="48" />
         <p class="empty-title">No items yet</p>
@@ -384,6 +399,7 @@ async function handleAddItem(type: MenuItem['type']) {
         </p>
       </div>
 
+      <!-- Draggable Menu Items -->
       <WorkspaceMenuDraggableList
         v-else
         v-model="menuState.items"
@@ -447,6 +463,37 @@ async function handleAddItem(type: MenuItem['type']) {
   flex: 1;
   overflow-y: auto;
   padding: var(--app-space-s);
+}
+
+.static-menu-items {
+  margin-bottom: var(--app-space-xs);
+}
+
+.static-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-s);
+  padding: var(--app-space-xs) var(--app-space-s);
+  border-radius: var(--app-border-radius-s);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--app-text-color-regular);
+  font-size: var(--app-font-size-s);
+
+  &:hover {
+    background: var(--el-fill-color-light);
+    color: var(--app-primary-color);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.menu-divider {
+  height: 1px;
+  background: var(--app-border-color);
+  margin: var(--app-space-s) 0;
 }
 
 .empty-state {
