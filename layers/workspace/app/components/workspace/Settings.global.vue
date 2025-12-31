@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Workspace } from '#shared/types/db'
-
+import { ElMessageBox } from 'element-plus'
 interface Props {
   slug: string
 }
@@ -62,8 +62,15 @@ onMounted(async () => {
   // Subscribe to workspace changes
   workspaceSync.onChange((changes) => {
     // Re-load if this workspace was updated
-    if (changes.update.some((w: any) => w.slug === props.slug)) {
-      loadWorkspace()
+    if (changes.update.some((w: any) => w.new.id === workspace.value?.id)) {
+      // TODO alret user that someone has edited the workspace
+      ElMessageBox.confirm('Someone has edited the workspace. Do you want to reload the workspace?', 'Workspace has been edited', {
+        confirmButtonText: 'Reload',
+        cancelButtonText: 'Cancel',
+        type: 'warning',
+      }).then(() => {
+        loadWorkspace()
+      })
     }
     // Redirect if this workspace was deleted
     if (changes.delete.some((w: any) => w.slug === props.slug)) {

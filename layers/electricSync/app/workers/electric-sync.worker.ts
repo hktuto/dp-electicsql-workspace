@@ -17,6 +17,7 @@
 
 import { PGlite } from '@electric-sql/pglite'
 import { electricSync } from '@electric-sql/pglite-sync'
+// import { subscribe } from 'node:diagnostics_channel'
 
 // Worker context detection
 const isSharedWorker = 'onconnect' in self
@@ -36,9 +37,38 @@ interface WorkerState {
 }
 
 interface ShapeState {
-  shape: any
+  shape: any  // Has .unsubscribe(), .isUpToDate, .stream
   tableName: string
-  previousData: Map<string, any> // id -> record for diffing
+}
+
+// ============================================
+// Stream Message Types (from @electric-sql/client)
+// ============================================
+
+interface ChangeMessageHeaders {
+  operation: 'insert' | 'update' | 'delete'
+  lsn?: string
+  last?: boolean  // true if this is the last message in a transaction batch
+}
+
+interface ControlMessageHeaders {
+  control: 'up-to-date' | 'must-refetch'
+  global_last_seen_lsn?: string
+}
+
+interface StreamMessage {
+  headers: ChangeMessageHeaders | ControlMessageHeaders
+  value?: Record<string, any>
+  key?: string
+  offset?: string
+}
+
+function isChangeMessage(msg: StreamMessage): msg is StreamMessage & { headers: ChangeMessageHeaders } {
+  return 'operation' in msg.headers
+}
+
+function isControlMessage(msg: StreamMessage): msg is StreamMessage & { headers: ControlMessageHeaders } {
+  return 'control' in msg.headers
 }
 
 interface WorkerMessage {
@@ -377,56 +407,127 @@ async function initDB(): Promise<any> {
 }
 
 // ============================================
-// Change Detection
+// Stream Change Handler
 // ============================================
 
-function detectChanges(
+/**
+ * Setup stream subscription to receive real-time changes from Electric
+ * Replaces the old polling-based approach
+ */
+function setupStreamSubscription(
   shapeName: string,
   tableName: string,
-  newRecords: any[],
-  previousData: Map<string, any>
-): DataChange['changes'] {
+  shape: any
+): void {
+  // Buffer for batching messages (Electric sends in batches ending with last: true)
+  let messageBatch: StreamMessage[] = []
+
+  shape.stream.subscribe((messages: StreamMessage[]) => {
+    try {
+
+      for (const message of messages) {
+        if (isControlMessage(message)) {
+          handleControlMessage(shapeName, tableName, message)
+        } else if (isChangeMessage(message)) {
+          console.log('change message', message)
+          // Accumulate batch
+          messageBatch.push(message)
+          
+          // Process batch when we get the last message in transaction
+          if (message.headers.last) {
+            processBatch(shapeName, tableName, messageBatch)
+            messageBatch = []
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`[Electric Worker] Stream error for "${shapeName}":`, error)
+    }
+  })
+}
+
+/**
+ * Handle control messages from Electric stream
+ */
+function handleControlMessage(
+  shapeName: string,
+  tableName: string,
+  message: StreamMessage & { headers: ControlMessageHeaders }
+): void {
+  switch (message.headers.control) {
+    case 'up-to-date':
+      console.log(`[Electric Worker] Shape "${shapeName}" is up-to-date`)
+      broadcast({
+        type: 'SHAPE_UP_TO_DATE',
+        shapeName,
+        tableName,
+      })
+      break
+      
+    case 'must-refetch':
+      console.log(`[Electric Worker] Shape "${shapeName}" must refetch`)
+      broadcast({
+        type: 'SHAPE_MUST_REFETCH',
+        shapeName,
+        tableName,
+      })
+      break
+  }
+}
+
+/**
+ * Process a batch of change messages and broadcast to connected tabs
+ */
+function processBatch(
+  shapeName: string,
+  tableName: string,
+  messages: StreamMessage[]
+): void {
   const changes: DataChange['changes'] = {
     insert: [],
     update: [],
     delete: [],
   }
-  
-  const newDataMap = new Map<string, any>()
-  
-  // Process new records
-  for (const record of newRecords) {
-    const id = record.id
-    if (!id) continue
-    
-    newDataMap.set(id, record)
-    
-    const oldRecord = previousData.get(id)
-    if (!oldRecord) {
-      // New record - insert
-      changes.insert.push(record)
-    } else {
-      // Existing record - check for updates
-      if (JSON.stringify(oldRecord) !== JSON.stringify(record)) {
-        changes.update.push({ old: oldRecord, new: record })
-      }
-    }
-  }
-  
-  // Check for deletions
-  for (const [id, oldRecord] of previousData) {
-    if (!newDataMap.has(id)) {
-      changes.delete.push(oldRecord)
-    }
-  }
-  
-  return changes
-}
 
-function hasChanges(changes: DataChange['changes']): boolean {
-  return changes.insert.length > 0 || 
-         changes.update.length > 0 || 
-         changes.delete.length > 0
+  for (const msg of messages) {
+    if (!isChangeMessage(msg) || !msg.value) continue
+
+    const record = msg.value
+
+    switch (msg.headers.operation) {
+      case 'insert':
+        changes.insert.push(record)
+        break
+
+      case 'update':
+        // Note: Electric doesn't provide old value, only new value
+        changes.update.push({ old: {}, new: record })
+        break
+
+      case 'delete':
+        changes.delete.push(record)
+        break
+    }
+  }
+
+  const hasChanges = changes.insert.length > 0 || 
+                     changes.update.length > 0 || 
+                     changes.delete.length > 0
+
+  if (hasChanges) {
+    console.log(`[Electric Worker] Broadcasting changes for "${shapeName}":`, {
+      insert: changes.insert,
+      update: changes.update,
+      delete: changes.delete,
+    })
+
+    broadcast({
+      type: 'DATA_CHANGE',
+      shapeName,
+      tableName,
+      changes,
+    } as DataChange)
+  }
 }
 
 // ============================================
@@ -536,7 +637,6 @@ async function syncShape(
     const shapeState: ShapeState = {
       shape: null,
       tableName,
-      previousData: new Map(),
     }
     
     // Subscribe to shape with onInitialSync callback
@@ -546,117 +646,24 @@ async function syncShape(
       },
       table: tableName,
       primaryKey: ['id'],
+      shapeKey: tableName,
       onInitialSync: async () => {
         console.log(`[Electric Worker] Initial sync complete for "${shapeName}"`)
         
-        // Load initial data and store as previous state
-        const result = await db.query(`SELECT * FROM ${tableName}`)
-        const records = result.rows || []
-        
-        for (const record of records) {
-          if (record.id) {
-            shapeState.previousData.set(record.id, { ...record })
-          }
-        }
-        
-        // Broadcast initial load as inserts
-        if (records.length > 0) {
-          broadcast({
-            type: 'DATA_CHANGE',
-            shapeName,
-            tableName,
-            changes: {
-              insert: records,
-              update: [],
-              delete: [],
-            },
-          } as DataChange)
-        }
-        
-        broadcast({
-          type: 'SHAPE_SYNCED',
-          shapeName,
-          tableName,
-          recordCount: records.length,
-        })
       },
     })
     
     shapeState.shape = shape
     state.activeShapes.set(shapeName, shapeState)
     
-    // Setup change polling (Electric sync doesn't have native change callbacks)
-    // Poll for changes every 500ms when shape is active
-    setupChangePolling(shapeName, tableName)
+    // Setup stream subscription for real-time changes
+    setupStreamSubscription(shapeName, tableName, shape)
     
     console.log(`[Electric Worker] ✅ Shape "${shapeName}" synced`)
     
   } catch (error) {
     console.error(`[Electric Worker] Failed to sync shape "${shapeName}":`, error)
     throw error
-  }
-}
-
-// ============================================
-// Change Polling
-// ============================================
-
-const pollingIntervals = new Map<string, number>()
-
-function setupChangePolling(shapeName: string, tableName: string): void {
-  // Clear existing interval if any
-  const existing = pollingIntervals.get(shapeName)
-  if (existing) {
-    clearInterval(existing)
-  }
-  
-  // Poll for changes every 500ms
-  const intervalId = setInterval(async () => {
-    try {
-      await checkForChanges(shapeName, tableName)
-    } catch (error) {
-      console.error(`[Electric Worker] Error checking changes for "${shapeName}":`, error)
-    }
-  }, 500) as unknown as number
-  
-  pollingIntervals.set(shapeName, intervalId)
-}
-
-async function checkForChanges(shapeName: string, tableName: string): Promise<void> {
-  const shapeState = state.activeShapes.get(shapeName)
-  if (!shapeState || !state.db) return
-  
-  try {
-    const result = await state.db.query(`SELECT * FROM ${tableName}`)
-    const currentRecords = result.rows || []
-    
-    const changes = detectChanges(shapeName, tableName, currentRecords, shapeState.previousData)
-    
-    if (hasChanges(changes)) {
-      console.log(`[Electric Worker] Changes detected in "${shapeName}":`, {
-        insert: changes.insert.length,
-        update: changes.update.length,
-        delete: changes.delete.length,
-      })
-      
-      // Update previous data
-      shapeState.previousData.clear()
-      for (const record of currentRecords) {
-        if (record.id) {
-          shapeState.previousData.set(record.id, { ...record })
-        }
-      }
-      
-      // Broadcast changes
-      broadcast({
-        type: 'DATA_CHANGE',
-        shapeName,
-        tableName,
-        changes,
-      } as DataChange)
-    }
-  } catch (error) {
-    // Table might not exist yet, ignore
   }
 }
 
@@ -671,14 +678,7 @@ async function stopShape(shapeName: string): Promise<void> {
     return
   }
   
-  // Stop polling
-  const intervalId = pollingIntervals.get(shapeName)
-  if (intervalId) {
-    clearInterval(intervalId)
-    pollingIntervals.delete(shapeName)
-  }
-  
-  // Unsubscribe from shape
+  // Unsubscribe from shape (also stops stream subscription)
   if (shapeState.shape?.unsubscribe) {
     await shapeState.shape.unsubscribe()
   }
@@ -699,19 +699,13 @@ async function stopShape(shapeName: string): Promise<void> {
 async function forceReset(): Promise<void> {
   console.log('[Electric Worker] Force resetting database...')
   
-  // Stop all polling intervals first
-  for (const [shapeName, intervalId] of pollingIntervals) {
-    clearInterval(intervalId)
-    console.log(`[Electric Worker] Stopped polling for "${shapeName}"`)
-  }
-  pollingIntervals.clear()
-  
-  // Stop all shapes
+  // Stop all shapes (unsubscribe also stops stream subscriptions)
   for (const shapeName of state.activeShapes.keys()) {
     const shapeState = state.activeShapes.get(shapeName)
     if (shapeState?.shape?.unsubscribe) {
       try {
         await shapeState.shape.unsubscribe()
+        console.log(`[Electric Worker] Unsubscribed shape "${shapeName}"`)
       } catch (e) {
         console.warn(`[Electric Worker] Error unsubscribing shape "${shapeName}":`, e)
       }
@@ -954,3 +948,4 @@ if (isSharedWorker) {
   
   console.log('[Electric Worker] Dedicated Worker started')
 }
+

@@ -512,7 +512,7 @@ onMounted(async () => {
 
   // Subscribe to workspace changes
   workspaceSync.onChange((changes) => {
-    if (changes.update.some((w: any) => w.new.slug === props.slug)) {
+    if (changes.update.some((w: any) => w.new.id === workspace.value?.id)) {
       loadWorkspace()
     }
     if (changes.delete.some((w: any) => w.slug === props.slug)) {

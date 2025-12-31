@@ -232,7 +232,8 @@ function navigateToTable(table: DataTable) {
 }
 
 // Watch for changes
-dataTableSync.onChange(() => {
+dataTableSync.onDataTableChange((changes) => {
+  console.log('dataTable changes', changes)
   loadTables()
 })
 

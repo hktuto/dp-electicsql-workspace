@@ -168,7 +168,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // console.log('[Electric Proxy] Forwarding request:', originUrl.toString())
+  console.log('[Electric Proxy] Forwarding request:', originUrl.toString())
 
   try {
     // Forward request to Electric
@@ -181,7 +181,6 @@ export default defineEventHandler(async (event) => {
     const headers = new Headers(response.headers)
     headers.delete('content-encoding')
     headers.delete('content-length')
-    
     // Add Vary header for cache isolation based on auth
     // This ensures different users don't get each other's cached data
     headers.set('Vary', 'Authorization')
