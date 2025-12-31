@@ -293,7 +293,7 @@ const deleteItem = async (id: string) => {
   // Navigate away if user is currently viewing the deleted item (use slug)
   const currentPath = router.currentRoute.value.path
   if (item.slug && (
-      currentPath.includes(`/tables/${item.slug}`) || 
+      currentPath.includes(`/table/${item.slug}`) || 
       currentPath.includes(`/view/${item.slug}`) || 
       currentPath.includes(`/folder/${item.slug}`) || 
       currentPath.includes(`/dashboard/${item.slug}`)
@@ -390,7 +390,7 @@ function navigateToItem(item: MenuItem) {
       router.push(`${base}/folder/${item.slug}`)
       break
     case 'table':
-      router.push(`${base}/tables/${item.slug}`)
+      router.push(`${base}/table/${item.slug}`)
       break
     case 'view':
       router.push(`${base}/view/${item.slug}`)
@@ -515,7 +515,7 @@ async function handleCreateTable() {
 
     // Navigate to table
     ElMessage.success(`Table "${newTable.table.name}" created successfully`)
-    router.push(`/workspaces/${props.workspaceSlug}/tables/${newTable.table.slug}`)
+    router.push(`/workspaces/${props.workspaceSlug}/table/${newTable.table.slug}`)
   } catch (error: any) {
     console.error('Failed to create table:', error)
     ElMessage.error(error.data?.message || 'Failed to create table')
