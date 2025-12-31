@@ -1,7 +1,7 @@
 <template>
   <div :class="['menuContainer', mode, sidebarMode, { mobile: isMobile }]">
-    <!-- Header: Logo + Close button on mobile -->
-    <div class="menuHeader">
+    <!-- Header: Logo + Close button on mobile (hidden in dock mode) -->
+    <div v-if="mode !== 'dock'" class="menuHeader">
       <NuxtLink to="/" class="logo-link" @click="$emit('closeMobile')">
         <img 
           v-if="sidebarMode === 'expand'" 
@@ -24,7 +24,7 @@
     </div>
 
     <!-- Body: Menu Items -->
-    <div class="menuBody">
+    <div :class="['menuBody', { 'dock-layout': mode === 'dock' }]">
       <div 
         v-for="item in menu" 
         :key="item.id" 
@@ -39,16 +39,22 @@
             <Icon v-if="item.icon" :name="item.icon" />
           </div>
           <Transition name="label-fade">
-            <div v-if="sidebarMode === 'expand'" class="menuItemLabel">
+            <div>
+            <div v-if="sidebarMode === 'expand' && mode !== 'dock'" class="menuItemLabel">
               {{ item.label }}
+            </div>
+            <!-- Dock mode: show label below icon -->
+            <div v-if="mode === 'dock'" class="menuItemLabel dock-label">
+              {{ item.label }}
+            </div>
             </div>
           </Transition>
         </template>
       </div>
     </div>
 
-    <!-- Footer: User Profile & Toggle (toggle hidden on mobile) -->
-    <div class="menuFooter">
+    <!-- Footer: User Profile & Toggle (hidden in dock mode) -->
+    <div v-if="mode !== 'dock'" class="menuFooter">
       <UserProfileMenu :collapse="sidebarMode === 'collapse'" />
       <div v-if="!isMobile" class="menuItem toggle-btn" @click="toggleSidebarMode">
         <Icon 
@@ -62,11 +68,14 @@
 </template>
 
 <script setup lang="ts">
+import type { DockItem } from '~/composables/useDockItems'
+
 const sidebarMode = defineModel<'collapse' | 'expand'>('sidebarMode')
 
 const props = defineProps<{
   mode: 'sidebar' | 'dock'
   isMobile?: boolean
+  dockItems?: DockItem[]
 }>()
 
 const emit = defineEmits<{
@@ -85,7 +94,7 @@ type MenuItem = {
   action?: () => void
 }
 
-const menu = ref<MenuItem[]>([
+const baseMenu = ref<MenuItem[]>([
   {
     id: 'home',
     label: 'Home',
@@ -106,6 +115,33 @@ const menu = ref<MenuItem[]>([
     icon: 'material-symbols:chat-rounded',
   },
 ])
+
+// Combine base menu with dock items for dock mode
+const menu = computed(() => {
+  if (props.mode === 'dock' && props.dockItems) {
+    // Merge dock items with base menu
+    const allItems = [...baseMenu.value]
+    props.dockItems.forEach(dockItem => {
+      const existingIndex = allItems.findIndex(item => item.id === dockItem.id)
+      const menuItem: MenuItem = {
+        id: dockItem.id,
+        label: dockItem.label,
+        url: dockItem.url,
+        urlRule: dockItem.urlRule,
+        icon: dockItem.icon,
+        action: dockItem.action,
+        component: dockItem.component,
+      }
+      if (existingIndex > -1) {
+        allItems[existingIndex] = menuItem
+      } else {
+        allItems.push(menuItem)
+      }
+    })
+    return allItems
+  }
+  return baseMenu.value
+})
 
 function isActive(item: MenuItem) {
   if (item.urlRule) {
@@ -149,6 +185,14 @@ function handleClick(item: MenuItem) {
   // Mobile always expanded
   &.mobile {
     width: 240px;
+  }
+
+  // Dock mode: no fixed width, adapts to content
+  &.dock {
+    width: auto;
+    height: 100%;
+    background: transparent;
+    border: none;
   }
 }
 
@@ -217,6 +261,17 @@ function handleClick(item: MenuItem) {
   gap: var(--app-space-xxs);
   padding: var(--app-space-s);
   overflow-y: auto;
+
+  // Dock layout: horizontal
+  &.dock-layout {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: var(--app-space-xs);
+    padding: var(--app-space-xs);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
 }
 
 // Menu footer
@@ -242,6 +297,16 @@ function handleClick(item: MenuItem) {
   white-space: nowrap;
   overflow: hidden;
 
+  // Dock mode: vertical layout with icon on top
+  .dock-layout & {
+    flex-direction: column;
+    gap: var(--app-space-xxs);
+    padding: var(--app-space-xs);
+    min-width: 60px;
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+
   &:hover {
     color: var(--app-primary-color);
     background: var(--app-primary-alpha-10);
@@ -261,12 +326,28 @@ function handleClick(item: MenuItem) {
     height: 24px;
     flex-shrink: 0;
     font-size: 20px;
+
+    .dock-layout & {
+      width: 28px;
+      height: 28px;
+      font-size: 24px;
+    }
   }
 
   .menuItemLabel {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
+
+    &.dock-label {
+      font-size: var(--app-font-size-xs);
+      text-align: center;
+      line-height: 1.2;
+      max-width: 60px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 }
 

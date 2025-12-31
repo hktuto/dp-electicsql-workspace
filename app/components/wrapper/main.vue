@@ -1,30 +1,11 @@
 <template>
   <div ref="wrapperRef" :class="['pageWrapper', mode, { 'mobile-view': isMobile }]">
-    <!-- Mobile Menu Toggle (floating button) -->
-    <button 
-      v-if="mode === 'sidebar' && isMobile && !isMobileMenuOpen" 
-      class="mobile-menu-toggle"
-      @click="toggleMobileMenu"
-    >
-      <Icon name="material-symbols:menu" />
-    </button>
-
-    <!-- Overlay for mobile menu -->
-    <Transition name="fade">
-      <div 
-        v-if="isMobileMenuOpen" 
-        class="menu-overlay"
-        @click="isMobileMenuOpen = false"
-      />
-    </Transition>
-
-    <!-- Main Menu -->
-    <aside :class="['main-menu', { open: isMobileMenuOpen }]">
+    <!-- Desktop Sidebar Menu -->
+    <aside v-if="!isMobile" class="main-menu">
       <CommonMenu 
         :mode="mode" 
-        :is-mobile="isMobile"
-        v-model:sidebar-mode="actualSidebarMode"
-        @close-mobile="isMobileMenuOpen = false"
+        :is-mobile="false"
+        v-model:sidebar-mode="sidebarMode"
       />
     </aside>
 
@@ -32,18 +13,38 @@
     <main class="main-content">
       <slot />
     </main>
+
+    <!-- Mobile Dock (iOS 18 style) -->
+    <Transition name="dock-slide">
+      <nav v-if="isMobile" class="mobile-dock">
+        <div class="dock-backdrop"></div>
+        <div class="dock-content">
+          <CommonMenu 
+            mode="dock" 
+            :is-mobile="true"
+            :dock-items="dockItems"
+            v-model:sidebar-mode="actualSidebarMode"
+          />
+        </div>
+      </nav>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
+import type { DockItem, DockContext } from '~/composables/useDockItems'
+import { DockContextKey } from '~/composables/useDockItems'
+
 const mode = useState<'sidebar' | 'dock'>('mode', () => 'sidebar')
 const sidebarMode = useState<'collapse' | 'expand'>('sidebarMode', () => 'collapse')
 
 // Mobile state
 const wrapperRef = ref<HTMLElement | null>(null)
 const isMobile = ref(false)
-const isMobileMenuOpen = ref(false)
 let resizeObserver: ResizeObserver | null = null
+
+// Dock items state (for pages to add items)
+const dockItems = ref<DockItem[]>([])
 
 // Force expand mode on mobile
 const actualSidebarMode = computed({
@@ -51,9 +52,35 @@ const actualSidebarMode = computed({
   set: (val) => { sidebarMode.value = val }
 })
 
-function toggleMobileMenu() {
-  isMobileMenuOpen.value = !isMobileMenuOpen.value
+// Provide dock context for pages to add items
+const dockContext: DockContext = {
+  items: dockItems,
+  addItem: (item: DockItem) => {
+    if (!dockItems.value.find(i => i.id === item.id)) {
+      dockItems.value.push(item)
+      // Sort by order if provided
+      dockItems.value.sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+    }
+  },
+  removeItem: (id: string) => {
+    const index = dockItems.value.findIndex(i => i.id === id)
+    if (index > -1) {
+      dockItems.value.splice(index, 1)
+    }
+  },
+  updateItem: (id: string, updates: Partial<DockItem>) => {
+    const item = dockItems.value.find(i => i.id === id)
+    if (item) {
+      Object.assign(item, updates)
+      // Re-sort if order changed
+      if (updates.order !== undefined) {
+        dockItems.value.sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+      }
+    }
+  }
 }
+
+provide(DockContextKey, dockContext)
 
 onMounted(() => {
   // Initial check
@@ -66,12 +93,7 @@ onMounted(() => {
     if (wrapperRef.value) {
       resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
-          const wasMobile = isMobile.value
           isMobile.value = entry.contentRect.width < 768
-          // Close menu when switching to desktop
-          if (wasMobile && !isMobile.value) {
-            isMobileMenuOpen.value = false
-          }
         }
       })
       resizeObserver.observe(wrapperRef.value)
@@ -84,12 +106,6 @@ onUnmounted(() => {
     resizeObserver.disconnect()
     resizeObserver = null
   }
-})
-
-// Close mobile menu on route change
-const route = useRoute()
-watch(() => route.path, () => {
-  isMobileMenuOpen.value = false
 })
 </script>
 
@@ -118,76 +134,18 @@ watch(() => route.path, () => {
       grid-template-columns: 1fr;
     }
 
-    .mobile-menu-toggle {
-      display: flex;
-    }
-
-    .menu-overlay {
-      display: block;
-    }
-
-    .main-menu {
-      position: absolute;
-      left: 0;
-      top: 0;
-      height: 100%;
-      transform: translateX(-100%);
-      box-shadow: var(--app-shadow-xl);
-
-      &.open {
-        transform: translateX(0);
-      }
+    .main-content {
+      padding-bottom: calc(var(--dock-height) + var(--app-space-s));
     }
   }
 }
 
-// Mobile menu toggle button
-.mobile-menu-toggle {
-  display: none;
-  position: absolute;
-  bottom: var(--app-space-m);
-  left: var(--app-space-m);
-  z-index: 101;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: none;
-  background: var(--app-primary-color);
-  color: white;
-  cursor: pointer;
-  box-shadow: var(--app-shadow-l);
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  transition: transform 0.2s ease, background 0.2s ease;
-
-  &:hover {
-    background: var(--app-primary-4);
-    transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-}
-
-// Menu overlay for mobile
-.menu-overlay {
-  display: none;
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 99;
-  backdrop-filter: blur(2px);
-}
-
-// Main menu aside
+// Desktop sidebar menu
 .main-menu {
   height: 100%;
   background: var(--app-bg-color);
   border-right: 1px solid var(--app-border-color);
   z-index: 100;
-  transition: transform 0.3s ease;
 }
 
 // Main content area
@@ -196,14 +154,60 @@ watch(() => route.path, () => {
   overflow: auto;
 }
 
-// Transitions
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
+// Mobile Dock (iOS 18 style)
+.mobile-dock {
+  position: fixed;
+  bottom: var(--app-space-s);
+  left: var(--app-space-s);
+  right: var(--app-space-s);
+  z-index: 1000;
+  --dock-height: 80px;
+  height: var(--dock-height);
+  pointer-events: none;
 }
 
-.fade-enter-from,
-.fade-leave-to {
+.dock-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--app-border-radius-l);
+  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.1);
+}
+
+.dock-content {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--app-space-xs) var(--app-space-s);
+  pointer-events: auto;
+}
+
+// Dark mode support for dock
+@media (prefers-color-scheme: dark) {
+  .dock-backdrop {
+    background: rgba(0, 0, 0, 0.7);
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+// Dock slide transition
+.dock-slide-enter-active,
+.dock-slide-leave-active {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+.dock-slide-enter-from {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.dock-slide-leave-to {
+  transform: translateY(100%);
   opacity: 0;
 }
 </style>
