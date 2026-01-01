@@ -145,7 +145,7 @@ const rules: FormRules = {
 async function loadTables() {
   loading.value = true
   try {
-    await dataTableSync.startSync()
+    // data_tables is auto-synced as a system table on login
     tables.value = await dataTableSync.getByWorkspaceId(props.workspaceId)
   } catch (error) {
     console.error('Failed to load tables:', error)

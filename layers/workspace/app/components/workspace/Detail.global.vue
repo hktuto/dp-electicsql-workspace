@@ -23,7 +23,6 @@ async function loadWorkspace() {
   loading.value = workspace.value ? false : true; // only load on initial load
   try {
     workspace.value = await workspaceSync.findBySlug(currentCompany.value.id, props.slug)
-    
     if (!workspace.value) {
       ElMessage.error('Workspace not found')
       router.push('/workspaces')
@@ -35,10 +34,8 @@ async function loadWorkspace() {
 
 // Start sync and load workspace
 onMounted(async () => {
-  await Promise.all([
-    companySync.startSync(),
-    workspaceSync.startSync(),
-  ])
+  // Start company_members sync (workspaces are auto-synced as system table)
+  // await companySync.startSync()
   await loadWorkspace()
 
   // Subscribe to workspace changes

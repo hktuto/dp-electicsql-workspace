@@ -1,10 +1,11 @@
 /**
  * User Sync Composable
  * 
- * Syncs the users table from PostgreSQL to PGLite via Electric SQL.
+ * Query builder for the users table (auto-synced on login).
  * 
  * Pattern: Query on demand, subscribe to changes
- * - NO global data refs (data lives in PGLite only)
+ * - NO sync control (users table is auto-synced as a system table)
+ * - NO global data refs (data lives in PGlite only)
  * - Components query what they need
  * - Components subscribe to change events to re-query
  */
@@ -21,58 +22,17 @@ interface User {
   updated_at: string
 }
 
-interface UserSyncState {
-  isSyncing: boolean
-  error: string | null
-  lastSyncAt: Date | null
-}
-
-// Only sync STATE, not data (data lives in PGLite)
-const useUserSyncState = () => useState<UserSyncState>('userSyncState', () => ({
-  isSyncing: false,
-  error: null,
-  lastSyncAt: null,
-}))
-
 export function useUserSync() {
   const electric = useElectricSync()
-  const state = useUserSyncState()
 
   // ============================================
-  // Sync Control
+  // Sync Status (read-only, from central state)
   // ============================================
 
-  const startSync = async () => {
-    if (state.value.isSyncing) return
-
-    state.value.isSyncing = true
-    state.value.error = null
-
-    try {
-      // Sync users (via authenticated proxy)
-      await electric.syncShape(
-        'users',
-        'users',
-        '/api/electric/shape?table=users'
-      )
-      state.value.lastSyncAt = new Date()
-    } catch (error) {
-      state.value.error = (error as Error).message
-      console.error('[useUserSync] Sync failed:', error)
-    }
-  }
-
-  const stopSync = async () => {
-    try {
-      await electric.stopShape('users')
-      state.value.isSyncing = false
-    } catch (error) {
-      console.error('[useUserSync] Stop sync failed:', error)
-    }
-  }
+  const isUpToDate = computed(() => electric.isTableUpToDate('users'))
 
   // ============================================
-  // Query Helpers (always fresh from PGLite)
+  // Query Helpers (always fresh from PGlite)
   // ============================================
 
   const getAll = async (): Promise<User[]> => {
@@ -118,12 +78,8 @@ export function useUserSync() {
   }
 
   return {
-    // State (sync status only)
-    state: readonly(state),
-
-    // Sync control
-    startSync,
-    stopSync,
+    // Sync status (read-only)
+    isUpToDate,
 
     // Queries
     getAll,

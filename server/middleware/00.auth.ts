@@ -37,6 +37,12 @@ function matchRoute(path: string, patterns: string[]): boolean {
 export default defineEventHandler(async (event) => {
   const path = event.path
 
+  // ⚡ PERFORMANCE: Only run auth middleware on API routes
+  // Skip all static assets, pages, and client-side routes
+  if (!path.startsWith('/api/')) {
+    return
+  }
+
   // Skip auth for certain routes
   if (matchRoute(path, SKIP_AUTH_ROUTES)) {
     return

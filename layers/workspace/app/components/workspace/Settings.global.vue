@@ -53,11 +53,9 @@ async function loadWorkspace() {
 
 // Start sync and load workspace
 onMounted(async () => {
-  await Promise.all([
-    companySync.startSync(),
-    workspaceSync.startSync(),
-  ])
-  await loadWorkspace()
+  // Start company_members sync (workspaces are auto-synced as system table)
+  // await companySync.startSync()
+  loadWorkspace()
 
   // Subscribe to workspace changes
   workspaceSync.onChange((changes) => {

@@ -499,11 +499,8 @@ function goBack() {
 
 // Lifecycle
 onMounted(async () => {
-  // Start syncs
-  await Promise.all([
-    companySync.startSync(),
-    workspaceSync.startSync(),
-  ])
+  // Start company_members sync (workspaces are auto-synced as system table)
+  await companySync.startSync()
   
   // Load workspace when company is available
   if (currentCompany.value?.id) {

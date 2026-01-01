@@ -1,69 +1,28 @@
 /**
  * Workspace Sync Composable
  * 
- * Syncs the workspaces table from PostgreSQL to PGLite via Electric SQL.
+ * Query builder for the workspaces table (auto-synced on login).
  * 
  * Pattern: Query on demand, subscribe to changes
- * - NO global data refs (data lives in PGLite only)
+ * - NO sync control (workspaces table is auto-synced as a system table)
+ * - NO global data refs (data lives in PGlite only)
  * - Components query what they need
  * - Components subscribe to change events to re-query
  */
 import type { MenuItem, Workspace } from '#shared/types/db'
 
 
-interface WorkspaceSyncState {
-  isSyncing: boolean
-  error: string | null
-  lastSyncAt: Date | null
-}
-
-// Only sync STATE, not data (data lives in PGLite)
-const useWorkspaceSyncState = () => useState<WorkspaceSyncState>('workspaceSyncState', () => ({
-  isSyncing: false,
-  error: null,
-  lastSyncAt: null,
-}))
-
 export function useWorkspaceSync() {
   const electric = useElectricSync()
-  const state = useWorkspaceSyncState()
 
   // ============================================
-  // Sync Control
+  // Sync Status (read-only, from central state)
   // ============================================
 
-  const startSync = async () => {
-    if (state.value.isSyncing) return
-
-    state.value.isSyncing = true
-    state.value.error = null
-
-    try {
-      // Sync workspaces (via authenticated proxy)
-      await electric.syncShape(
-        'workspaces',
-        'workspaces',
-        '/api/electric/shape?table=workspaces'
-      )
-      
-      state.value.lastSyncAt = new Date()
-    } catch (error) {
-      state.value.error = (error as Error).message
-      console.error('[useWorkspaceSync] Sync failed:', error)
-    }
-  }
-
-  const stopSync = async () => {
-    try {
-      await electric.stopShape('workspaces')
-      state.value.isSyncing = false
-    } catch (error) {
-      console.error('[useWorkspaceSync] Stop sync failed:', error)
-    }
-  }
+  const isUpToDate = computed(() => electric.isTableUpToDate('workspaces'))
 
   // ============================================
-  // Query Helpers (always fresh from PGLite)
+  // Query Helpers (always fresh from PGlite)
   // ============================================
 
   const getAll = async (): Promise<Workspace[]> => {
@@ -131,12 +90,8 @@ export function useWorkspaceSync() {
   }
 
   return {
-    // State (sync status only)
-    state: readonly(state),
-
-    // Sync control
-    startSync,
-    stopSync,
+    // Sync status (read-only)
+    isUpToDate,
 
     // Workspace queries
     getAll,

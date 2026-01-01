@@ -1,28 +1,34 @@
 import type { DataTable, DataTableColumn } from '#shared/types/db'
-import { eq } from 'drizzle-orm'
 
 /**
- * Composable for syncing data tables with ElectricSQL
+ * Data Table Sync Composable
+ * 
+ * Query builder for data_tables and data_table_columns tables (auto-synced on login).
+ * 
+ * Pattern: Query on demand, subscribe to changes
+ * - NO sync control (these are system tables, auto-synced on login)
+ * - NO global data refs (data lives in PGlite only)
+ * - Components query what they need
+ * - Components subscribe to change events to re-query
  */
 export function useDataTableSync() {
   const electricSync = useElectricSync()
-  const isReady = ref(false)
-  const error = ref<string | null>(null)
 
-  // Start sync for data tables and columns
-  async function startSync() {
-    if (isReady.value) return
+  // ============================================
+  // Sync Status (read-only, from central state)
+  // ============================================
 
-    try {
-      await electricSync.syncShape('data_tables', 'data_tables', '/api/electric/shape?table=data_tables')
-      await electricSync.syncShape('data_table_columns', 'data_table_columns', '/api/electric/shape?table=data_table_columns')
-      await electricSync.syncShape('table_migrations', 'table_migrations', '/api/electric/shape?table=table_migrations')
-      isReady.value = true
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to start sync'
-      console.error('[useDataTableSync] Error:', err)
-    }
-  }
+  const isDataTablesUpToDate = computed(() => electricSync.isTableUpToDate('data_tables'))
+  const isDataTableColumnsUpToDate = computed(() => electricSync.isTableUpToDate('data_table_columns'))
+
+  // All system tables ready (for convenience)
+  const isReady = computed(() => 
+    isDataTablesUpToDate.value && isDataTableColumnsUpToDate.value
+  )
+
+  // ============================================
+  // Query Helpers
+  // ============================================
 
   // Get all tables for a workspace
   async function getByWorkspaceId(workspaceId: string): Promise<DataTable[]> {
@@ -62,7 +68,6 @@ export function useDataTableSync() {
 
   // Get columns for a table
   async function getColumns(tableId: string): Promise<DataTableColumn[]> {
-
     try {
       return await electricSync.query<DataTableColumn>(
         `SELECT * FROM data_table_columns WHERE data_table_id = $1 ORDER BY "order"`,
@@ -73,6 +78,11 @@ export function useDataTableSync() {
       return []
     }
   }
+
+  // ============================================
+  // Change Subscriptions
+  // ============================================
+
   type ChangeCallback = (changes: { insert: any[]; update: any[]; delete: any[] }) => void
 
   // Subscribe to changes
@@ -81,28 +91,28 @@ export function useDataTableSync() {
       callback(change)
     })
   }
+
   function onDataTableColumnChange(callback: ChangeCallback) {
     return electricSync.onDataChange('data_table_columns', (change) => {
       callback(change)
     })
   }
-  function onTableMigrationChange(callback: ChangeCallback) {
-    return electricSync.onDataChange('table_migrations', (change) => {
-      callback(change)
-    })
-  }
 
   return {
+    // Sync status (read-only)
     isReady: readonly(isReady),
-    error: readonly(error),
-    startSync,
+    isDataTablesUpToDate: readonly(isDataTablesUpToDate),
+    isDataTableColumnsUpToDate: readonly(isDataTableColumnsUpToDate),
+
+    // Queries
     getByWorkspaceId,
     findById,
     findBySlug,
     getColumns,
+
+    // Change subscriptions
     onDataTableChange,
     onDataTableColumnChange,
-    onTableMigrationChange,
   }
 }
 

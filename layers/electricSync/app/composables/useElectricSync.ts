@@ -73,10 +73,14 @@ const useElectricStatus = () => useState<ElectricStatus>('electricStatus', () =>
 // Global state for system data ready (one-way flag, persists across sessions)
 const useSystemDataReady = () => useState<boolean>('systemDataReady', () => false)
 
+// Global state for tracking which tables are up-to-date (central source of truth)
+const useTableUpToDateStatus = () => useState<Record<string, boolean>>('tableUpToDateStatus', () => ({}))
+
 export function useElectricSync() {
   const workerConnected = useWorkerConnected()
   const status = useElectricStatus()
   const systemDataReady = useSystemDataReady()
+  const tableUpToDateStatus = useTableUpToDateStatus()
 
   const isConnected = computed(() => workerConnected.value && status.value.isReady)
 
@@ -216,6 +220,13 @@ export function useElectricSync() {
         }
         break
 
+      case 'SHAPE_UP_TO_DATE':
+        // Track which tables are up-to-date (central state)
+        const tableStatus = useTableUpToDateStatus()
+        tableStatus.value[message.tableName] = true
+        console.log(`[useElectricSync] Table "${message.tableName}" is up-to-date`)
+        break
+
       default:
         // Handle request/response pattern
         if (type.endsWith('_RESULT') || type === 'ERROR') {
@@ -334,6 +345,11 @@ export function useElectricSync() {
     }
   }
 
+  // Check if a table is up-to-date (central helper)
+  const isTableUpToDate = (tableName: string): boolean => {
+    return tableUpToDateStatus.value[tableName] ?? false
+  }
+
   // Auto-connect on mount
   onMounted(() => {
     connect()
@@ -343,6 +359,7 @@ export function useElectricSync() {
     status: readonly(status),
     isConnected,
     systemDataReady: readonly(systemDataReady),
+    isTableUpToDate,
     connect,
     init,
     syncSystemTables,

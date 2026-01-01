@@ -119,16 +119,15 @@ async function loadWorkspaces() {
       workspaces.value = await workspaceSync.getByUserId(user.value.id)
     }
   } finally {
+    console.log('workspaces', workspaces.value)
     loadingWorkspaces.value = false
   }
 }
 
 // Start sync and load workspaces
 onMounted(async () => {
-  await Promise.all([
-    companySync.startSync(),
-    workspaceSync.startSync(),
-  ])
+  // Start company_members sync (workspaces are auto-synced as system table)
+  // await companySync.startSync()
   await loadWorkspaces()
 
   // Subscribe to workspace changes - re-load when data changes

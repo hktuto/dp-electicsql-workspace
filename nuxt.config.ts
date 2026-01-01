@@ -39,7 +39,8 @@ export default defineNuxtConfig({
       exclude: [
         '@electric-sql/pglite',
         '@electric-sql/pglite-sync'
-      ]
+      ],
+
     }
   }
 })

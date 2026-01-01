@@ -39,6 +39,7 @@ watch(isAuthenticated, async (value) => {
 
 // Subscribe to company changes - re-load when data changes
 onMounted(() => {
+  console.log('companySync', companySync)
   companySync.onCompanyChange(() => {
     loadCompanies()
   })
@@ -66,74 +67,7 @@ async function goToCompany(slug: string) {
   <div class="home-page">
     <div class="home-container">
       <h1>DocPal</h1>
-      
-      <div v-if="!isInitialized || isLoading" class="loading">
-        <el-icon class="is-loading"><Loading /></el-icon>
-        <span>Loading...</span>
-      </div>
 
-      <template v-else-if="isAuthenticated && user">
-        <div class="user-info">
-          <el-avatar :size="64">
-            {{ user.name?.charAt(0) || user.email.charAt(0).toUpperCase() }}
-          </el-avatar>
-          <h2>Welcome, {{ user.name || user.email }}</h2>
-          <p class="email">{{ user.email }}</p>
-          <el-tag v-if="user.isSuperAdmin" type="danger" size="small">
-            Super Admin
-          </el-tag>
-        </div>
-
-        <!-- Company List -->
-        <div class="companies-section">
-          <h3>Your Companies</h3>
-          
-          <div v-if="loadingCompanies" class="loading">
-            <el-icon class="is-loading"><Loading /></el-icon>
-            <span>Loading companies...</span>
-          </div>
-
-          <div v-else-if="companies.length === 0" class="no-companies">
-            <p>You don't have any companies yet.</p>
-            <el-button v-if="user.isSuperAdmin" type="primary" @click="router.push('/company/new')">
-              Create Company
-            </el-button>
-          </div>
-
-          <div v-else class="company-grid">
-            <el-card 
-              v-for="company in companies" 
-              :key="company.id"
-              class="company-card"
-              shadow="hover"
-              @click="goToCompany(company.slug)"
-            >
-              <div class="company-logo">
-                <el-avatar :size="48" shape="square">
-                  {{ company.name.charAt(0).toUpperCase() }}
-                </el-avatar>
-              </div>
-              <div class="company-info">
-                <h4>{{ company.name }}</h4>
-                <p v-if="company.description">{{ company.description }}</p>
-              </div>
-            </el-card>
-          </div>
-        </div>
-
-        <div class="actions">
-          <el-button size="large" @click="handleLogout">
-            Logout
-          </el-button>
-        </div>
-      </template>
-
-      <template v-else>
-        <p class="welcome-text">Welcome to DocPal</p>
-        <el-button type="primary" size="large" @click="router.push('/auth/login')">
-          Sign In
-        </el-button>
-      </template>
     </div>
   </div>
 </WrapperMain>

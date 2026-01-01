@@ -85,7 +85,7 @@ export function useAuth() {
       
       // Start system tables sync (don't wait for completion)
       console.log('[useAuth] Starting system tables sync...')
-      await electricSync.syncSystemTables()
+      electricSync.syncSystemTables()
       console.log('[useAuth] System tables sync started - will notify when ready')
       
       // Note: We don't wait here. Each composable will check systemDataReady
