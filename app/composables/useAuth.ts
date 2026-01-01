@@ -46,7 +46,7 @@ export function useAuth() {
         
         // If authenticated, sync system tables
         if (currentUser) {
-          await syncSystemTablesForUser()
+          syncSystemTablesForUser()
         }
       } catch {
         user.value = null

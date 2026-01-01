@@ -643,7 +643,11 @@ const testPage: PageNode = {
 
 ---
 
-### Step 5: Page Routing Integration (Week 3)
+### 🎯 **Phase 3.4.4: Page Routing & Production (After DB)**
+
+**Goal:** Full routing integration and production deployment.
+
+### Step 5: Page Routing Integration
 
 **Goal:** Dynamic pages work with URL routing.
 
@@ -696,7 +700,7 @@ const pageContext = {
 
 ---
 
-### Step 6: Complete Component Library (Week 4+)
+### Step 6: Complete Component Library
 
 **Goal:** Build remaining components with metadata.
 
@@ -727,26 +731,213 @@ const pageContext = {
 
 ---
 
-## Next Immediate Steps (Start Now)
+## Current Status & Next Steps
 
-### Phase 1: Local JSON Validation (No Database!)
+### ✅ **Phase 3.4.1: Foundation Complete**
 
-1. ✅ **Create component inventory** (Done above)
-2. ✅ **Create TypeScript types** (Done - `shared/types/dynamic-page.ts`)
-3. 🔄 **Build test components** - `SimpleCard`, `InteractiveButton`
-4. 🔄 **Create local JSON registry** - Component definitions
-5. 🔄 **Create test page JSON** - Hardcoded page structure
-6. 🔄 **Build dynamic renderer** - Works with local data
-7. 🔄 **Add metadata** to existing `WorkspaceDetail`
-8. 🔄 **Test & iterate** - Validate schema design
+**Completed:**
+- [x] TypeScript types (`shared/dynamicComponent/dynamic-page.ts`)
+- [x] Component versioning system (integer + versionName)
+- [x] Migration composable (`useComponentMigration`)
+- [x] Dynamic renderer with edit/view mode toggle
+- [x] Test components (pageContainer, workspaceList, etc.)
+- [x] Component registry structure
+- [x] `useDynamicRender` with undo/redo support
+- [x] `useDynamicRouter` skeleton
 
-### Phase 2: Database Migration (After Validation)
+### 🔄 **Phase 3.4.2: POC Testing & Validation (Current)**
 
-9. ⏸️ **Finalize schema** - Based on learnings from JSON
-10. ⏸️ **Create DB migration** - `ui_components`, `workspace_pages`
-11. ⏸️ **Create seed script** - Uses JSON to populate DB
-12. ⏸️ **Build APIs** - CRUD for pages
-13. ⏸️ **Migrate to DB** - Switch from JSON to DB loading
+**Goal:** Validate all core functionality works before committing to DB schema.
+
+#### **Core Functionality Tests**
+
+- [ ] **Event Listener Testing**
+  - [ ] Test `@click`, `@change`, etc. from ComponentNode.eventHandlers
+  - [ ] Test event propagation (child → parent)
+  - [ ] Test custom events
+  - [ ] Verify JSONLogic event handler execution
+
+- [ ] **Router Implementation & Testing**
+  - [ ] Implement `navigate()`, `replace()`, `back()` in `useDynamicRouter`
+  - [ ] Decide: Internal navigation (within dynamic pages) vs external (Nuxt router)
+  - [ ] Parse URL params and query strings
+  - [ ] Sync with browser history
+  - [ ] Test deep linking
+
+- [ ] **Page Navigation System**
+  - [ ] Create catch-all route: `pages/[...all].vue`
+  - [ ] Load different ComponentNode trees based on route
+  - [ ] Handle route changes without full page reload
+  - [ ] Test breadcrumbs/back button
+  - [ ] Handle 404 for unknown pages
+
+- [ ] **Error Boundary Testing**
+  - [ ] Test `NuxtErrorBoundary` in renderer
+  - [ ] Isolate component failures (one fails, others continue)
+  - [ ] Show error UI with component info
+  - [ ] Test recovery (reload component)
+  - [ ] Log errors for debugging
+
+- [ ] **Props & Validation**
+  - [ ] Test static props binding
+  - [ ] Test dynamic props (expressions, context variables)
+  - [ ] Validate props against ComponentSchema
+  - [ ] Test required vs optional props
+  - [ ] Test default values
+
+- [ ] **Slot Rendering**
+  - [ ] Test default slot with children
+  - [ ] Test named slots (actions, header, footer, etc.)
+  - [ ] Test conditional slots (v-if in slot)
+  - [ ] Test empty slots
+  - [ ] Test deeply nested slots (slot in slot)
+
+- [ ] **State Management**
+  - [ ] Test undo/redo with `useRefHistory`
+  - [ ] Test state persistence across mode switches
+  - [ ] Test component state isolation
+  - [ ] Test shared state (context providers)
+
+#### **Edit Mode Features**
+
+- [ ] **Component Drawer/Picker**
+  - [ ] Build component library browser
+  - [ ] Group by category
+  - [ ] Search/filter components
+  - [ ] Show component icon, name, description
+  - [ ] Drag from drawer to canvas
+
+- [ ] **Drag & Drop**
+  - [ ] Drag component from drawer to slot
+  - [ ] Reorder children within slot
+  - [ ] Move component between slots
+  - [ ] Visual drop zones
+  - [ ] Prevent invalid drops (requiredParent)
+
+- [ ] **Component Edit UI**
+  - [ ] Props editor (text, number, boolean, select)
+  - [ ] Slot editor (add/remove children)
+  - [ ] Style editor (custom CSS)
+  - [ ] Event handler editor (basic)
+  - [ ] Component actions (delete, duplicate, copy/paste)
+
+- [ ] **Visual Feedback**
+  - [ ] Highlight selected component
+  - [ ] Show component boundaries in edit mode
+  - [ ] Hover effects
+  - [ ] Visual cues for empty slots
+
+#### **Real Component Integration**
+
+- [ ] **Build Production Components**
+  - [ ] WorkspaceList (with real data)
+  - [ ] WorkspaceDetail (with real data)
+  - [ ] DataTableList
+  - [ ] DataTableViewer
+  - [ ] Form components (input, select, etc.)
+  - [ ] Layout components (grid, flex, tabs)
+
+- [ ] **Component Features**
+  - [ ] Add icons to all components
+  - [ ] Add proper prop schemas
+  - [ ] Add event definitions
+  - [ ] Add slot definitions
+  - [ ] Test with real Electric SQL data
+
+#### **Schema Finalization**
+
+- [ ] **Component Registry**
+  - [ ] Move `componentList` to separate file/folder
+  - [ ] Create component registration helpers
+  - [ ] Add JSON export for seeding
+  - [ ] Create DB seed endpoint (if needed)
+
+- [ ] **Helper Functions**
+  - [ ] `getComponentsByCategory(category: string)`
+  - [ ] `searchComponents(query: string)`
+  - [ ] `validateComponentNode(node: ComponentNode)`
+  - [ ] `createDefaultNode(componentId: string)`
+  - [ ] `cloneComponentNode(node: ComponentNode)`
+  - [ ] `findNodeById(tree: ComponentNode, id: string)`
+  - [ ] `updateNodeInTree(tree: ComponentNode, id: string, updates: Partial<ComponentNode>)`
+
+- [ ] **Migration Testing**
+  - [ ] Create test component with v1 schema
+  - [ ] Add migration v1 → v2
+  - [ ] Test automatic migration on load
+  - [ ] Test migration with nested children
+  - [ ] Test validation after migration
+  - [ ] Test breaking vs non-breaking migrations
+
+#### **Performance & Quality**
+
+- [ ] **Performance Testing**
+  - [ ] Test with 10+ nested levels
+  - [ ] Test with 50+ components in tree
+  - [ ] Test with large props (arrays, objects)
+  - [ ] Measure render time
+  - [ ] Check for memory leaks
+
+- [ ] **Additional Tests**
+  - [ ] Test custom styling (inline styles, classes)
+  - [ ] Test keyboard shortcuts (if implemented)
+  - [ ] Test mobile responsiveness
+  - [ ] Test hot reload (HMR)
+  - [ ] Test with different component versions in same tree
+
+### 🎯 **Phase 3.4.3: Database Migration (After POC Validation)**
+
+**Prerequisites:**
+- All POC tests passing
+- Schema is stable and validated
+- No major design changes anticipated
+
+**Tasks:**
+
+9. ⏸️ **Finalize Schema**
+   - Lock down ComponentSchema structure
+   - Lock down ComponentNode structure
+   - Document all fields and types
+   - Create JSON Schema definitions
+
+10. ⏸️ **Database Schema**
+    - Create `ui_components` table
+    - Create `workspace_pages` table
+    - Create `component_migrations` table (optional)
+    - Add indexes for performance
+    - Add foreign keys and constraints
+
+11. ⏸️ **Migration & Seeding**
+    - Generate Drizzle migration
+    - Create seed script from component registry
+    - Test seeding locally
+    - Test migration rollback
+
+12. ⏸️ **API Endpoints**
+    - `GET /api/components` - List all components
+    - `GET /api/components/:id` - Get component schema
+    - `GET /api/workspaces/:id/pages` - List pages
+    - `GET /api/workspaces/:id/pages/:pageId` - Get page
+    - `POST /api/workspaces/:id/pages` - Create page
+    - `PUT /api/workspaces/:id/pages/:pageId` - Update page
+    - `DELETE /api/workspaces/:id/pages/:pageId` - Delete page
+    - Add validation middleware
+    - Add permission checks
+
+13. ⏸️ **Frontend Integration**
+    - Update component registry to load from API
+    - Update page loader to use API
+    - Add loading states
+    - Add error handling
+    - Cache component schemas
+    - Test with Electric SQL sync (if applicable)
+
+14. ⏸️ **Testing**
+    - Test CRUD operations
+    - Test concurrent edits
+    - Test permissions
+    - Test with multiple workspaces
+    - Load testing
 
 ---
 

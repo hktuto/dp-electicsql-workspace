@@ -18,10 +18,10 @@ const componentToRender = computed(() => {
 
 <template>
     <NuxtErrorBoundary>
-        <component :is="componentToRender" v-bind="componentState.props" v-on="componentState.eventHandlers">
-            <template v-for="(children, key) in componentState.slots" :key="key" v-slot:[key]>
+        <component :is="componentToRender" v-bind="component.props" v-on="component.eventHandlers">
+            <template v-for="(children, key) in component.slots" :key="key" v-slot:[key]>
 
-                <dynamicPageComponentRenderer v-for="component in children" :key="component.id" :component="component" root="true"/>
+                <dynamicPageComponentRenderer v-for="childComponent in children" :key="childComponent.id" :component="childComponent" root="true"/>
 
             </template>
         </component>

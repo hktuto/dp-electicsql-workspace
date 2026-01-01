@@ -26,7 +26,7 @@ export async function detectCapabilities(): Promise<EnvCapabilities> {
     if ('storage' in navigator && 'getDirectory' in navigator.storage) {
       const root = await navigator.storage.getDirectory()
       // Test if sync access handles are available
-      const testFile = await root.getFileHandle('sync-test.txt', { create: true })
+      const testFile = await root.getFileHandle('__opfs_test__', { create: true })
       console.log('[EnvDetect] Test file created:', testFile)
       const accessHandle = await testFile.createSyncAccessHandle()
       console.log('[EnvDetect] OPFS sync access handles available:', accessHandle)

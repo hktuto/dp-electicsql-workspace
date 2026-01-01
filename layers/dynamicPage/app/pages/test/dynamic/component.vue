@@ -1,25 +1,37 @@
 <script setup lang="ts">
-const component = ref({
-    id: "pageHeader",
-    name: "Page Header",
-    type: "container",
-    description: "The header of the page",
-    category: "page",
-    renderComponent: "pageContainer",
-    editComponent: "pageContainerEdit",
+import type { ComponentNode } from '#shared/dynamicComponent/dynamic-page'
+
+const component = ref<ComponentNode>({
+    // Component reference
+    componentId: "pageContainer",
+    componentVersion: 1,  // Using integer version
+    
+    // Instance identity
+    instanceId: "page-root",
+    
+    // Component to render (denormalized for performance)
+    renderComponent: "PageContainer",
+    editComponent: "PageContainerEdit",
+    
+    // Props for pageContainer
     props: {
-        menu:[],
-        footer:[],
+        menu: [
+            {
+                id:"asfasf",
+                label:"asfasf"
+            }
+        ],
+        footer: [],
         logo: "/logo.svg",
     },
+    
+    // Slots with children
     slots: {
         default: [
             {
-                id: "workspaceList",
-                name: "Workspace List",
-                type: "component",
-                description: "The list of workspaces",
-                category: "page",
+                componentId: "workspaceList",
+                componentVersion: 1,
+                instanceId: "workspace-list-1",
                 renderComponent: "demoWorkspaceList",
                 editComponent: "demoWorkspaceListEdit",
                 props: {
@@ -31,6 +43,9 @@ const component = ref({
             }
         ]
     },
+    
+    // Metadata
+    createdAt: new Date().toISOString(),
 })
 </script>
 

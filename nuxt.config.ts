@@ -4,6 +4,7 @@ export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: true },
   modules: ['@element-plus/nuxt', '@nuxthub/core', '@nuxt/icon'],
+
   hub:{
     blob: false,
     db: {

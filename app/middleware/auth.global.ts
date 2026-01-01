@@ -6,7 +6,6 @@
 // Public routes that don't require authentication
 // Supports glob patterns: * matches any characters
 const PUBLIC_ROUTES = [
-  '/test/*',
   '/auth/*',
   '/public/*',
   '/dev/*',  // Dev pages (remove in production)
@@ -33,13 +32,18 @@ function matchRoute(path: string, patterns: string[]): boolean {
 }
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  // Only run on client
-  if (import.meta.server) return
+  const { start, finish } = useLoadingIndicator()
+  console.log('start loading')
+  start({
+    force: true,
+  })
 
   const isPublicRoute = matchRoute(to.path, PUBLIC_ROUTES)
 
   // Skip auth check for public routes
   if (isPublicRoute) {
+    console.log('finish loading public route')
+    finish()
     return
   }
 
@@ -47,6 +51,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Initialize auth state if not already done
   if (!isInitialized.value) {
+    console.log('initialize auth state')
     await init()
   }
 
@@ -54,27 +59,21 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Redirect authenticated users away from guest-only routes (like login)
   if (isAuthenticated.value && isGuestOnlyRoute) {
+    console.log('redirect to home')
+    finish()
     return navigateTo('/')
   }
 
   // Redirect unauthenticated users to login
   if (!isAuthenticated.value) {
+    console.log('redirect to login')
+    finish()
     return navigateTo('/auth/login')
   }
 
   // Initialize company context for authenticated users
   if (isAuthenticated.value) {
-    const companyContext = useCompanyContext()
-    const companySync = useCompanySync()
-    
-    // Start company sync if not already started
-    if (!companySync.state.value.isSyncing) {
-      await companySync.startSync()
-    }
-    
-    // Initialize company context (restore from cookie or auto-select first company)
-    if (!companyContext.currentCompanyId.value) {
-      await companyContext.init()
-    }
+
   }
+  finish()
 })
