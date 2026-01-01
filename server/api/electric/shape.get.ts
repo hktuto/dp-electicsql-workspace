@@ -137,7 +137,6 @@ export default defineEventHandler(async (event) => {
     
     switch (table) {
       case 'companies':
-        console.log('companies', companyIdList); 
         // Users can only see companies they belong to
         originUrl.searchParams.set('where', `id IN (${companyIdList})`)
         break
