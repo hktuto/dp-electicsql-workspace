@@ -14,8 +14,32 @@
 // Custom headers for error handling control
 const SKIP_AUTH_HEADER = 'x-skip-auth-redirect'
 const SKIP_ALL_ERRORS_HEADER = 'x-skip-all-errors'
+const UPDATE_TOKEN_HEADER = 'x-update-token'
+
+/**
+ * Generate a unique, stable session token for this browser tab
+ * Format: {timestamp}-{random} (e.g., "1736abc123-def456")
+ * 
+ * This token:
+ * - Is generated once per browser tab session (stable across requests)
+ * - Is unique across all browser tabs
+ * - Is used to identify which tab made an API change
+ * - Allows filtering out own changes from Electric SQL sync notifications
+ */
+function generateSessionToken(): string {
+  // Use timestamp for uniqueness across sessions, plus random string
+  // This ensures uniqueness even if Math.random() collides
+  const timestamp = Date.now().toString(36)
+  const randomPart1 = Math.random().toString(36).substring(2, 10)
+  const randomPart2 = Math.random().toString(36).substring(2, 10)
+  
+  return `${timestamp}-${randomPart1}-${randomPart2}`
+}
+
+
 
 export default defineNuxtPlugin((nuxtApp) => {
+  const sessionToken = generateSessionToken()
   const api = $fetch.create({
     // Base URL for API calls (relative to origin)
     baseURL: '/api',
@@ -24,7 +48,8 @@ export default defineNuxtPlugin((nuxtApp) => {
     onRequest({ options }) {
       // Add custom headers if needed
       // Note: Auth cookie is automatically sent by browser
-      options.headers = options.headers || {}
+      // options.headers = options.headers || {}
+      options.headers.set('x-session-token', sessionToken)
     },
 
     // Handle response errors globally
@@ -80,6 +105,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   return {
     provide: {
       api,
+      sessionToken
     },
   }
 })

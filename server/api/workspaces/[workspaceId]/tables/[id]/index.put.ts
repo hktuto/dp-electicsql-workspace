@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db } from 'hub:db'
 import { dataTables } from 'hub:db:schema'
+import { getUpdateToken } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
 
@@ -28,6 +29,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, message: 'Table does not belong to this workspace' })
   }
 
+  // Get update token from headers
+  const updateToken = getUpdateToken(event)
+
   // Update metadata (not physical table)
   const updated = await db.update(dataTables)
     .set({
@@ -39,6 +43,7 @@ export default defineEventHandler(async (event) => {
       ...(cardJson !== undefined && { cardJson }),
       ...(dashboardJson !== undefined && { dashboardJson }),
       ...(listJson !== undefined && { listJson }),
+      updateToken,
       updatedAt: new Date(),
     })
     .where(eq(dataTables.id, tableId))

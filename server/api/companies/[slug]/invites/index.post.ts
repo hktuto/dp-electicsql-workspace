@@ -1,6 +1,6 @@
 import { eq, and, isNull, gt } from 'drizzle-orm'
 import { db, schema } from 'hub:db'
-import { requireAuth } from '~~/server/utils/auth'
+import { requireAuth, getUpdateToken } from '~~/server/utils/auth'
 import { generateUUID } from '~~/server/utils/uuid'
 
 /**
@@ -122,6 +122,9 @@ export default defineEventHandler(async (event) => {
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 7)
 
+  // Get update token from headers
+  const updateToken = getUpdateToken(event)
+
   const inviteId = generateUUID()
   await db.insert(schema.companyInvites).values({
     id: inviteId,
@@ -131,6 +134,7 @@ export default defineEventHandler(async (event) => {
     inviteCode,
     invitedBy: user.userId,
     expiresAt,
+    updateToken,
   })
 
   // TODO: Send invite email

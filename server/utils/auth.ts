@@ -49,3 +49,12 @@ export async function requireSuperAdmin(event: H3Event): Promise<JWTPayload> {
   return user
 }
 
+/**
+ * Get the update token from request headers
+ * This token is used to filter out own changes in Electric SQL sync notifications
+ * Returns null if not present (optional header)
+ */
+export function getUpdateToken(event: H3Event): string | null {
+  return getHeader(event, 'x-session-token') || null
+}
+

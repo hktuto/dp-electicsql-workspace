@@ -79,6 +79,7 @@ export function generateCreateTableSql(tableName: string): string {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       created_by UUID REFERENCES users(id),
       updated_by UUID REFERENCES users(id),
+      _update_token TEXT,
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
@@ -175,7 +176,7 @@ export function validateTableName(tableName: string): boolean {
  * Validate column name (snake_case, no reserved words)
  */
 export function validateColumnName(columnName: string): boolean {
-  const reserved = ['id', 'created_by', 'updated_by', 'created_at', 'updated_at', 'select', 'from', 'where', 'order', 'group', 'having']
+  const reserved = ['id', 'created_by', 'updated_by', '_update_token', 'created_at', 'updated_at', 'select', 'from', 'where', 'order', 'group', 'having']
   return /^[a-z][a-z0-9_]*$/.test(columnName) && !reserved.includes(columnName.toLowerCase())
 }
 

@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm'
 import { db, schema } from 'hub:db'
-import { requireAuth } from '~~/server/utils/auth'
+import { requireAuth, getUpdateToken } from '~~/server/utils/auth'
 
 /**
  * PUT /api/workspaces/:id
@@ -81,6 +81,9 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  // Get update token from headers
+  const updateToken = getUpdateToken(event)
+
   // Update workspace
   await db
     .update(schema.workspaces)
@@ -90,6 +93,7 @@ export default defineEventHandler(async (event) => {
       description: description !== undefined ? description : workspace.description,
       icon: icon !== undefined ? icon : workspace.icon,
       menu: menu !== undefined ? menu : workspace.menu,
+      updateToken,
       updatedAt: new Date(),
     })
     .where(eq(schema.workspaces.id, workspaceId))

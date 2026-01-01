@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db, schema } from 'hub:db'
-import { requireAuth } from '~~/server/utils/auth'
+import { requireAuth, getUpdateToken } from '~~/server/utils/auth'
 import { generateUUID } from '~~/server/utils/uuid'
 
 /**
@@ -51,6 +51,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Get update token from headers
+  const updateToken = getUpdateToken(event)
+
   // Create company
   const companyId = generateUUID()
   
@@ -62,6 +65,7 @@ export default defineEventHandler(async (event) => {
     logo: logo || null,
     companyUsers: [user.userId],
     createdBy: user.userId,
+    updateToken,
   })
 
   // Add creator as owner
@@ -70,6 +74,8 @@ export default defineEventHandler(async (event) => {
     companyId,
     userId: user.userId,
     role: 'owner',
+    createdBy: user.userId,
+    updateToken,
   })
 
   // Fetch created company

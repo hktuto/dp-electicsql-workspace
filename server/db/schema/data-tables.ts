@@ -29,6 +29,7 @@ export const dataTables = pgTable('data_tables', {
   listJson: jsonb('list_json'),
   
   createdBy: uuid('created_by').references(() => users.id),
+  updateToken: text('_update_token'), // Session token for filtering own changes in Electric sync
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
@@ -68,6 +69,8 @@ export const dataTableColumns = pgTable('data_table_columns', {
   // Validation rules
   validationRules: jsonb('validation_rules').$type<ValidationRules>(),
   
+  createdBy: uuid('created_by').references(() => users.id), // Who created this column
+  updateToken: text('_update_token'), // Session token for filtering own changes in Electric sync
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
@@ -87,7 +90,8 @@ export const tableMigrations = pgTable('table_migrations', {
   migrationSql: text('migration_sql').notNull(),
   rollbackSql: text('rollback_sql'),
   description: text('description'),
-  
+  createdBy: uuid('created_by').references(() => users.id), // Who executed this migration
+  updateToken: text('_update_token'), // Session token for filtering own changes in Electric sync
   executedAt: timestamp('executed_at').notNull().defaultNow(),
 })
 

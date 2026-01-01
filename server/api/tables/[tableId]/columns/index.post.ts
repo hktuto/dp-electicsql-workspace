@@ -2,10 +2,11 @@ import { eq, desc } from 'drizzle-orm'
 import { db } from 'hub:db'
 import { dataTables, dataTableColumns, tableMigrations } from 'hub:db:schema'
 import { generateAddColumnSql, executeSql, validateColumnName } from '~~/server/utils/dynamic-table'
+import { requireAuth, getUpdateToken } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   // Auth check
-  await requireAuth(event)
+  const user = await requireAuth(event)
   
   const tableId = getRouterParam(event, 'tableId')
   if (!tableId) {
@@ -77,6 +78,9 @@ export default defineEventHandler(async (event) => {
     
     const nextVersion = (lastMigration?.version || 0) + 1
 
+    // Get update token from headers
+    const updateToken = getUpdateToken(event)
+
     // Store migration history
     await db.insert(tableMigrations).values({
       dataTableId: tableId,
@@ -85,6 +89,8 @@ export default defineEventHandler(async (event) => {
       migrationSql: addColumnSql,
       rollbackSql: `ALTER TABLE ${table.tableName} DROP COLUMN ${name};`,
       description: `Add column: ${label}`,
+      createdBy: user.userId,
+      updateToken,
     })
 
     // Create column metadata
@@ -103,6 +109,8 @@ export default defineEventHandler(async (event) => {
       isPrimaryDisplay,
       config,
       validationRules,
+      createdBy: user.userId,
+      updateToken,
     }).returning()
 
     return {

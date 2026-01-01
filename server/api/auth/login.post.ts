@@ -46,10 +46,16 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Get update token from headers (may not be present for login)
+  const updateToken = getUpdateToken(event)
+
   // Update last login
   await db
     .update(users)
-    .set({ lastLoginAt: new Date() })
+    .set({ 
+      lastLoginAt: new Date(),
+      updateToken,
+    })
     .where(eq(users.id, user.id))
 
   // Generate JWT

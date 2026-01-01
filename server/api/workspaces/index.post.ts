@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm'
 import { db, schema } from 'hub:db'
-import { requireAuth } from '~~/server/utils/auth'
+import { requireAuth, getUpdateToken } from '~~/server/utils/auth'
 import { generateUUID } from '~~/server/utils/uuid'
 
 /**
@@ -87,6 +87,9 @@ export default defineEventHandler(async (event) => {
 
   const workspaceUsers = companyMembers.map(m => m.userId)
 
+  // Get update token from headers
+  const updateToken = getUpdateToken(event)
+
   // Create workspace
   const workspaceId = generateUUID()
   
@@ -100,6 +103,7 @@ export default defineEventHandler(async (event) => {
     companyId,
     workspaceUsers,
     createdBy: user.userId,
+    updateToken,
   })
 
   // Fetch created workspace

@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm'
 import { db, schema } from 'hub:db'
-import { requireAuth } from '~~/server/utils/auth'
+import { requireAuth, getUpdateToken } from '~~/server/utils/auth'
 
 /**
  * PUT /api/companies/:slug
@@ -61,6 +61,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Get update token from headers
+  const updateToken = getUpdateToken(event)
+
   // Update company
   await db
     .update(schema.companies)
@@ -68,6 +71,7 @@ export default defineEventHandler(async (event) => {
       name,
       description: description || null,
       logo: logo || null,
+      updateToken,
       updatedAt: new Date(),
     })
     .where(eq(schema.companies.id, company.id))

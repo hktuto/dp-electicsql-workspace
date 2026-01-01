@@ -2,6 +2,7 @@ import { eq, and } from 'drizzle-orm'
 import { db } from 'hub:db'
 import { dataTables, dataTableColumns, tableMigrations, workspaces } from 'hub:db:schema'
 import { generateTableName, generateCreateTableSql, executeSql, validateTableName } from '~~/server/utils/dynamic-table'
+import { getUpdateToken } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   // Get user from context (set by auth middleware)
@@ -90,6 +91,9 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    // Get update token from headers
+    const updateToken = getUpdateToken(event)
+
     // Create physical table in PostgreSQL
     const createTableSql = generateCreateTableSql(tableName)
     await executeSql(createTableSql)
@@ -104,6 +108,7 @@ export default defineEventHandler(async (event) => {
       description,
       icon,
       createdBy: user?.userId || null,
+      updateToken,
     }).returning()
 
     // Store migration history
@@ -114,6 +119,8 @@ export default defineEventHandler(async (event) => {
       migrationSql: createTableSql,
       rollbackSql: `DROP TABLE IF EXISTS ${tableName} CASCADE;`,
       description: `Initial table creation: ${name}`,
+      createdBy: user?.userId || null,
+      updateToken,
     })
 
     // If initial columns are provided, add them
@@ -134,6 +141,8 @@ export default defineEventHandler(async (event) => {
           isPrimaryDisplay: col.isPrimaryDisplay || false,
           config: col.config,
           validationRules: col.validationRules,
+          createdBy: user?.userId || null,
+          updateToken,
         })
       }
     }

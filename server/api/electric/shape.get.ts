@@ -86,7 +86,7 @@ export default defineEventHandler(async (event) => {
 
   // Get user's company IDs for filtering (cached for this request)
   let userCompanyIds: string[] | null = null
-  if (user && !user.isSuperAdmin && COMPANY_FILTERED_TABLES.includes(table)) {
+  if (user && COMPANY_FILTERED_TABLES.includes(table)) {
     userCompanyIds = await getUserCompanyIds(user.userId)
     
     // If user has no companies, return empty for company-filtered tables
@@ -131,12 +131,13 @@ export default defineEventHandler(async (event) => {
   }
 
   // Add row-level filtering based on user context
-  // Super admins see all data, regular users see only their companies' data
-  if (user && !user.isSuperAdmin && userCompanyIds && userCompanyIds.length > 0) {
+  // Super admins see all data, regular users see only their companies' data\
+  if (user && userCompanyIds && userCompanyIds.length > 0) {
     const companyIdList = userCompanyIds.map((id) => `'${id}'`).join(',')
     
     switch (table) {
       case 'companies':
+        console.log('companies', companyIdList); 
         // Users can only see companies they belong to
         originUrl.searchParams.set('where', `id IN (${companyIdList})`)
         break
@@ -168,7 +169,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  console.log('[Electric Proxy] Forwarding request:', originUrl.toString())
+  // console.log('[Electric Proxy]', originUrl.toString())
 
   try {
     // Forward request to Electric

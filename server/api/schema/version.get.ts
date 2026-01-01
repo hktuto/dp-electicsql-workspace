@@ -9,7 +9,7 @@
 
 // Schema version - increment this when schema changes
 // Format: MAJOR.MINOR.PATCH or timestamp-based (e.g., '20251229_001')
-const SCHEMA_VERSION = '4.0.0' // Bumped for dynamic tables (Phase 4.0)
+const SCHEMA_VERSION = '4.0.1' // Bumped for dynamic tables (Phase 4.0)
 
 export default defineEventHandler(() => {
   return {

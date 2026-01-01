@@ -11,6 +11,7 @@ export const companyInvites = pgTable('company_invites', {
   invitedBy: uuid('invited_by').notNull().references(() => users.id),
   acceptedAt: timestamp('accepted_at'),
   expiresAt: timestamp('expires_at').notNull(),
+  updateToken: text('_update_token'), // Session token for filtering own changes in Electric sync
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 

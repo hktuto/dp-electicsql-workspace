@@ -60,6 +60,7 @@ export function useAuth() {
     isLoading.value = true
     try {
       const { $api } = useNuxtApp()
+      console.log('login', credentials)
       const { user: loggedInUser } = await $api<{ user: User }>('/auth/login', {
         method: 'POST',
         body: credentials,
@@ -67,6 +68,7 @@ export function useAuth() {
       user.value = loggedInUser
       return { success: true }
     } catch (error: unknown) {
+      console.log('login error', error)
       const err = error as { data?: { message?: string } }
       return { 
         success: false, 

@@ -2,10 +2,11 @@ import { eq, desc } from 'drizzle-orm'
 import { db } from 'hub:db'
 import { dataTables, dataTableColumns, tableMigrations } from 'hub:db:schema'
 import { generateAlterColumnSql, generateRenameColumnSql, executeSql, validateColumnName } from '~~/server/utils/dynamic-table'
+import { requireAuth, getUpdateToken } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   // Auth check
-  await requireAuth(event)
+  const user = await requireAuth(event)
   
   const tableId = getRouterParam(event, 'tableId')
   const columnId = getRouterParam(event, 'id')
@@ -58,6 +59,9 @@ export default defineEventHandler(async (event) => {
     (name && name !== existingColumn.name)
 
   try {
+    // Get update token from headers (used for both migration and column update)
+    const updateToken = getUpdateToken(event)
+    
     let migrationSql = ''
     let rollbackSql = ''
 
@@ -140,6 +144,8 @@ export default defineEventHandler(async (event) => {
         migrationSql,
         rollbackSql,
         description: `Update column: ${label || existingColumn.label}`,
+        createdBy: user.userId,
+        updateToken,
       })
     }
 
@@ -157,6 +163,7 @@ export default defineEventHandler(async (event) => {
         ...(isPrimaryDisplay !== undefined && { isPrimaryDisplay }),
         ...(config && { config }),
         ...(validationRules && { validationRules }),
+        updateToken,
         updatedAt: new Date(),
       })
       .where(eq(dataTableColumns.id, columnId))
