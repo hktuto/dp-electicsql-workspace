@@ -22,6 +22,7 @@ interface ElectricStatus {
   schemaVersion: string | null
   workerType: 'shared' | 'dedicated' | null
   storageType: 'opfs' | 'indexeddb' | null
+  isSystemDataReady: boolean
 }
 
 interface DataChange {
@@ -66,11 +67,16 @@ const useElectricStatus = () => useState<ElectricStatus>('electricStatus', () =>
   schemaVersion: null,
   workerType: null,
   storageType: null,
+  isSystemDataReady: false,
 }))
+
+// Global state for system data ready (one-way flag, persists across sessions)
+const useSystemDataReady = () => useState<boolean>('systemDataReady', () => false)
 
 export function useElectricSync() {
   const workerConnected = useWorkerConnected()
   const status = useElectricStatus()
+  const systemDataReady = useSystemDataReady()
 
   const isConnected = computed(() => workerConnected.value && status.value.isReady)
 
@@ -147,12 +153,21 @@ export function useElectricSync() {
         status.value.connectedTabs = message.connectedTabs
         status.value.activeShapes = message.activeShapes || []
         status.value.schemaVersion = message.schemaVersion
+        status.value.isSystemDataReady = message.isSystemDataReady || false
         break
 
       case 'DB_READY':
         status.value.isReady = true
         status.value.isInitializing = false
         status.value.schemaVersion = message.schemaVersion
+        status.value.isSystemDataReady = message.isSystemDataReady || false
+        break
+
+      case 'SYSTEM_DATA_READY':
+        status.value.isSystemDataReady = true
+        const systemDataReady = useSystemDataReady()
+        systemDataReady.value = true // Set one-way flag
+        console.log('[useElectricSync] System data is ready!')
         break
 
       case 'DB_ERROR':
@@ -249,6 +264,11 @@ export function useElectricSync() {
   // Initialize the database
   const init = () => sendMessage<{ success: boolean; schemaVersion: string | null }>('INIT')
 
+  // Sync system tables (users, companies, workspaces, data_tables, data_table_columns)
+  const syncSystemTables = () => {
+    return sendMessage<{ success: boolean; isSystemDataReady: boolean }>('SYNC_SYSTEM_TABLES')
+  }
+
   // Subscribe to a shape
   // Optional schema parameter: provide CREATE TABLE SQL if table doesn't exist in worker's TABLE_SCHEMAS
   const syncShape = (shapeName: string, tableName: string, shapeUrl: string, schema?: string) => {
@@ -322,8 +342,10 @@ export function useElectricSync() {
   return {
     status: readonly(status),
     isConnected,
+    systemDataReady: readonly(systemDataReady),
     connect,
     init,
+    syncSystemTables,
     syncShape,
     stopShape,
     forceReset,

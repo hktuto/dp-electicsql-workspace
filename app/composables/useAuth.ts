@@ -31,6 +31,7 @@ export function useAuth() {
   /**
    * Initialize auth state - call once on app mount
    * Returns existing promise if already initializing (prevents race conditions)
+   * Also syncs system tables if authenticated
    */
   async function init(): Promise<void> {
     if (isInitialized.value) return
@@ -42,6 +43,11 @@ export function useAuth() {
         // Use $fetch directly here since $api plugin may not be ready yet
         const { user: currentUser } = await $fetch<{ user: User | null }>('/api/auth/me')
         user.value = currentUser
+        
+        // If authenticated, sync system tables
+        if (currentUser) {
+          await syncSystemTablesForUser()
+        }
       } catch {
         user.value = null
       } finally {
@@ -54,7 +60,57 @@ export function useAuth() {
   }
 
   /**
+   * Sync system tables and wait for data ready
+   * Only runs on client side
+   */
+  async function syncSystemTablesForUser(): Promise<void> {
+    // Only run on client side
+    if (import.meta.server) return
+    
+    try {
+      // Dynamic import to avoid SSR issues
+      const { useElectricSync } = await import('#electricSync/composables/useElectricSync')
+      const electricSync = useElectricSync()
+      
+      // Connect to worker if not already connected
+      if (!electricSync.isConnected.value) {
+        await electricSync.connect()
+        await electricSync.init()
+      }
+      
+      // Check if system data is already ready (persisted state)
+      if (electricSync.systemDataReady.value) {
+        console.log('[useAuth] System data already ready')
+        return
+      }
+      
+      // Start system tables sync
+      console.log('[useAuth] Starting system tables sync...')
+      await electricSync.syncSystemTables()
+      
+      // Wait for system data to be ready (with timeout)
+      const maxWaitTime = 30000 // 30 seconds
+      const checkInterval = 500 // Check every 500ms
+      const startTime = Date.now()
+      
+      while (!electricSync.systemDataReady.value && (Date.now() - startTime) < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, checkInterval))
+      }
+      
+      if (electricSync.systemDataReady.value) {
+        console.log('[useAuth] ✅ System data ready!')
+      } else {
+        console.warn('[useAuth] System data sync timeout - continuing anyway')
+      }
+    } catch (error) {
+      console.error('[useAuth] Error syncing system tables:', error)
+      // Don't throw - allow login to continue even if sync fails
+    }
+  }
+
+  /**
    * Login with email and password
+   * Also syncs system tables after successful login
    */
   async function login(credentials: LoginCredentials) {
     isLoading.value = true
@@ -66,6 +122,10 @@ export function useAuth() {
         body: credentials,
       })
       user.value = loggedInUser
+      
+      // Sync system tables after successful login
+      await syncSystemTablesForUser()
+      
       return { success: true }
     } catch (error: unknown) {
       console.log('login error', error)
@@ -81,6 +141,8 @@ export function useAuth() {
 
   /**
    * Logout
+   * Note: We keep system data ready flag as true (one-way flag)
+   * so next login doesn't need to wait for sync again
    */
   async function logout() {
     isLoading.value = true
@@ -88,6 +150,10 @@ export function useAuth() {
       const { $api } = useNuxtApp()
       await $api('/auth/logout', { method: 'POST' })
       user.value = null
+      
+      // Note: We intentionally do NOT reset systemDataReady
+      // It's a one-way flag that persists across sessions
+      // System tables remain in local PGlite for next login
     } finally {
       isLoading.value = false
     }

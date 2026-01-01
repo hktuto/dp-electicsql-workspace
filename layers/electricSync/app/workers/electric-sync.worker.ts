@@ -34,11 +34,13 @@ interface WorkerState {
   error: string | null
   activeShapes: Map<string, ShapeState>
   schemaVersion: string | null
+  isSystemDataReady: boolean // One-way flag: true once system data is ready
 }
 
 interface ShapeState {
   shape: any  // Has .unsubscribe(), .isUpToDate, .stream
   tableName: string
+  isUpToDate: boolean  // Track if this shape received 'up-to-date' control message
 }
 
 // ============================================
@@ -128,6 +130,7 @@ const state: WorkerState = {
   error: null,
   activeShapes: new Map(),
   schemaVersion: null,
+  isSystemDataReady: false,
 }
 
 // For dedicated worker, treat self as the message target
@@ -390,7 +393,11 @@ async function initDB(): Promise<any> {
     state.isInitializing = false
     
     console.log('[Electric Worker] ✅ Ready!')
-    broadcast({ type: 'DB_READY', schemaVersion: state.schemaVersion })
+    broadcast({ 
+      type: 'DB_READY', 
+      schemaVersion: state.schemaVersion,
+      isSystemDataReady: state.isSystemDataReady,
+    })
     
     return state.db
     
@@ -457,6 +464,16 @@ function handleControlMessage(
   switch (message.headers.control) {
     case 'up-to-date':
       console.log(`[Electric Worker] Shape "${shapeName}" is up-to-date`)
+      
+      // Update shape state
+      const shapeState = state.activeShapes.get(shapeName)
+      if (shapeState) {
+        shapeState.isUpToDate = true
+      }
+      
+      // Check if all system tables are ready
+      checkSystemTablesReady(tableName)
+      
       broadcast({
         type: 'SHAPE_UP_TO_DATE',
         shapeName,
@@ -466,12 +483,56 @@ function handleControlMessage(
       
     case 'must-refetch':
       console.log(`[Electric Worker] Shape "${shapeName}" must refetch`)
+      
+      // Reset isUpToDate flag when refetch is required
+      const shape = state.activeShapes.get(shapeName)
+      if (shape) {
+        shape.isUpToDate = false
+      }
+      
       broadcast({
         type: 'SHAPE_MUST_REFETCH',
         shapeName,
         tableName,
       })
       break
+  }
+}
+
+/**
+ * Check if all system tables have received 'up-to-date' control message
+ * If all are ready, broadcast SYSTEM_DATA_READY event
+ */
+function checkSystemTablesReady(tableName: string): void {
+  // Only check if this is a system table
+  if (!SYSTEM_TABLES.includes(tableName)) {
+    return
+  }
+  
+  // Only check if not already ready (one-way flag)
+  if (state.isSystemDataReady) {
+    return
+  }
+  
+  // Check if ALL system tables are up-to-date
+  const allReady = SYSTEM_TABLES.every(sysTable => {
+    const shape = state.activeShapes.get(sysTable)
+    return shape && shape.isUpToDate
+  })
+  
+  if (allReady) {
+    state.isSystemDataReady = true
+    console.log('[Electric Worker] ✅ All system tables are ready!')
+    broadcast({
+      type: 'SYSTEM_DATA_READY',
+    })
+  } else {
+    // Log which tables are still syncing
+    const notReady = SYSTEM_TABLES.filter(sysTable => {
+      const shape = state.activeShapes.get(sysTable)
+      return !shape || !shape.isUpToDate
+    })
+    console.log(`[Electric Worker] System tables still syncing: ${notReady.join(', ')}`)
   }
 }
 
@@ -592,6 +653,61 @@ async function fetchAllTableSchemas(): Promise<void> {
 }
 
 // ============================================
+// System Tables Sync (Multi-table)
+// ============================================
+
+/**
+ * System tables to sync using syncShapesToTables
+ * These tables are synced together for transactional consistency
+ */
+const SYSTEM_TABLES = [
+  'users',
+  'companies',
+  'workspaces',
+  'data_tables',
+  'data_table_columns',
+]
+
+async function syncSystemTables(): Promise<void> {
+  // If already ready, don't sync again
+  if (state.isSystemDataReady) {
+    console.log('[Electric Worker] System data already ready')
+    return
+  }
+  
+  // Check if any system tables are already syncing
+  const alreadySyncing = SYSTEM_TABLES.some(tableName => state.activeShapes.has(tableName))
+  if (alreadySyncing) {
+    console.log('[Electric Worker] System tables already syncing')
+    return
+  }
+  
+  try {
+    console.log('[Electric Worker] Starting sync for system tables...')
+    
+    const baseUrl = `${self.location.origin}/api/electric/shape`
+    
+    // Sync each system table using existing syncShape()
+    // This will reuse setupStreamSubscription and handleControlMessage
+    for (const tableName of SYSTEM_TABLES) {
+      console.log(`[Electric Worker] Syncing system table: ${tableName}`)
+      await syncShape(
+        tableName,  // shapeName
+        tableName,  // tableName
+        `${baseUrl}?table=${tableName}`  // shapeUrl
+      )
+    }
+    
+    console.log('[Electric Worker] ✅ All system tables sync started')
+    
+  } catch (error) {
+    console.error('[Electric Worker] Failed to sync system tables:', error)
+    state.error = (error as Error).message || String(error)
+    throw error
+  }
+}
+
+// ============================================
 // Shape Subscription
 // ============================================
 
@@ -637,6 +753,7 @@ async function syncShape(
     const shapeState: ShapeState = {
       shape: null,
       tableName,
+      isUpToDate: false,  // Will be set to true when 'up-to-date' control message is received
     }
     
     // Subscribe to shape with onInitialSync callback
@@ -807,6 +924,11 @@ async function handleMessage(port: MessagePort, message: WorkerMessage): Promise
         result = { success: true, schemaVersion: state.schemaVersion }
         break
         
+      case 'SYNC_SYSTEM_TABLES':
+        await syncSystemTables()
+        result = { success: true, isSystemDataReady: state.isSystemDataReady }
+        break
+        
       case 'SYNC_SHAPE':
         await syncShape(payload.shapeName, payload.tableName, payload.shapeUrl, payload.schema)
         result = { success: true }
@@ -839,6 +961,7 @@ async function handleMessage(port: MessagePort, message: WorkerMessage): Promise
           connectedTabs: state.ports.size,
           activeShapes: Array.from(state.activeShapes.keys()),
           schemaVersion: state.schemaVersion,
+          isSystemDataReady: state.isSystemDataReady,
         }
         break
         
