@@ -218,7 +218,6 @@ export function useElectricSync() {
 
       default:
         // Handle request/response pattern
-        console.log('[useElectricSync] Message received:', type)
         if (type.endsWith('_RESULT') || type === 'ERROR') {
           const pending = pendingRequests.get(id)
           if (pending) {
