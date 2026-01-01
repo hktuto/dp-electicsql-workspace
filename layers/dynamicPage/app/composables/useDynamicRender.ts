@@ -48,9 +48,17 @@ export const useDynamicRenderProvider = (initState: ComponentNode) => {
         commit,
     })
 
-    return [
-
-    ]
+    return {
+        toggleEditMode,
+        displayMode,
+        componentState,
+        canUndo,
+        canRedo,
+        undo,
+        redo,
+        save,
+        commit,
+    }
 }
 
 export const useDynamicRenderContext = () => {

@@ -14,10 +14,11 @@
         <aside>
             <img v-if="logo" :src="logo" alt="logo" />
             <div class="menu">
-                
+                edit
                 <pre contentEditable>{{ menu }}</pre>
             </div>
             <div class="footer">
+                edit
                 <pre contentEditable>{{ footer }}</pre>
             </div>
         </aside>

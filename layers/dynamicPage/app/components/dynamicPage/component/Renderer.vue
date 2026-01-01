@@ -9,7 +9,7 @@ const {displayMode, componentState} = useDynamicRenderContext()
 
 const componentToRender = computed(() => {
     if(displayMode.value === 'edit'){
-        return props.component.renderComponent || props.component.editComponent
+        return props.component.editComponent || props.component.renderComponent
     }
     return props.component.renderComponent
 })
@@ -18,18 +18,17 @@ const componentToRender = computed(() => {
 
 <template>
     <NuxtErrorBoundary>
+        <component :is="componentToRender" v-bind="componentState.props" v-on="componentState.eventHandlers">
+            <template v-for="(children, key) in componentState.slots" :key="key" v-slot:[key]>
 
-    <component :is="componentToRender" v-bind="componentState.props" v-on="componentState.eventHandlers">
-        <template v-for="(children, key) in componentState.slots" :key="key" v-slot:[key]>
-            {{ children }}
-            <dynamicPageComponentRenderer v-for="component in children" :key="component.id" :component="component" root="true"/>
+                <dynamicPageComponentRenderer v-for="component in children" :key="component.id" :component="component" root="true"/>
 
+            </template>
+        </component>
+        <template #error="{ error }">
+            <div>   
+                {{  error  }}
+            </div>
         </template>
-    </component>
-    <template #error="{ error }">
-        <div>   
-            {{  error  }}
-        </div>
-    </template>
     </NuxtErrorBoundary>
 </template>
