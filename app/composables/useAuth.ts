@@ -60,16 +60,15 @@ export function useAuth() {
   }
 
   /**
-   * Sync system tables and wait for data ready
+   * Start system tables sync (non-blocking)
    * Only runs on client side
+   * Each composable will handle data readiness independently
    */
   async function syncSystemTablesForUser(): Promise<void> {
     // Only run on client side
     if (import.meta.server) return
     
     try {
-      // Dynamic import to avoid SSR issues
-      const { useElectricSync } = await import('#electricSync/composables/useElectricSync')
       const electricSync = useElectricSync()
       
       // Connect to worker if not already connected
@@ -84,24 +83,13 @@ export function useAuth() {
         return
       }
       
-      // Start system tables sync
+      // Start system tables sync (don't wait for completion)
       console.log('[useAuth] Starting system tables sync...')
       await electricSync.syncSystemTables()
+      console.log('[useAuth] System tables sync started - will notify when ready')
       
-      // Wait for system data to be ready (with timeout)
-      const maxWaitTime = 30000 // 30 seconds
-      const checkInterval = 500 // Check every 500ms
-      const startTime = Date.now()
-      
-      while (!electricSync.systemDataReady.value && (Date.now() - startTime) < maxWaitTime) {
-        await new Promise(resolve => setTimeout(resolve, checkInterval))
-      }
-      
-      if (electricSync.systemDataReady.value) {
-        console.log('[useAuth] ✅ System data ready!')
-      } else {
-        console.warn('[useAuth] System data sync timeout - continuing anyway')
-      }
+      // Note: We don't wait here. Each composable will check systemDataReady
+      // and handle loading states independently for better UX
     } catch (error) {
       console.error('[useAuth] Error syncing system tables:', error)
       // Don't throw - allow login to continue even if sync fails
