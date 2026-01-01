@@ -9,7 +9,7 @@
 
 // Schema version - increment this when schema changes
 // Format: MAJOR.MINOR.PATCH or timestamp-based (e.g., '20251229_001')
-const SCHEMA_VERSION = '4.0.1' // Bumped for dynamic tables (Phase 4.0)
+const SCHEMA_VERSION = '4.0.2' // Fixed SQL generation to quote column/table names for reserved keywords
 
 export default defineEventHandler(() => {
   return {

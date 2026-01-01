@@ -129,7 +129,8 @@ export default defineEventHandler(async (event) => {
           typeName = `VARCHAR(${col.character_maximum_length})`
         }
 
-        let def = `${col.column_name} ${typeName}`
+        // Quote column names to handle reserved keywords like "order"
+        let def = `"${col.column_name}" ${typeName}`
 
         // Add PRIMARY KEY
         if (primaryKeys.has(col.column_name)) {
@@ -160,7 +161,7 @@ export default defineEventHandler(async (event) => {
         return `      ${def}`
       })
 
-      const createSql = `CREATE TABLE IF NOT EXISTS ${tableName} (\n${columnDefs.join(',\n')}\n    )`
+      const createSql = `CREATE TABLE IF NOT EXISTS "${tableName}" (\n${columnDefs.join(',\n')}\n    )`
       schemas[tableName] = createSql
 
     } catch (error) {
