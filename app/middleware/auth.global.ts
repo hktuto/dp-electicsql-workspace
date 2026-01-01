@@ -6,6 +6,7 @@
 // Public routes that don't require authentication
 // Supports glob patterns: * matches any characters
 const PUBLIC_ROUTES = [
+  '/test/*',
   '/auth/*',
   '/public/*',
   '/dev/*',  // Dev pages (remove in production)
