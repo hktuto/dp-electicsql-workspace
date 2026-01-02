@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type CommonPopoverDialog from '~/components/common/popoverDialog.vue';
 
+const {displayMode} = useDynamicRenderContext()
+
 const floatingState = ref<'collapse' | 'expand'>('collapse')
 const detailExpand = ref(false);
 
@@ -32,14 +34,20 @@ function savePosition() {
 
 function restorePosition() {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
+    const { width: iconWidth, height: iconHeight } = getIconSize();
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    
+    if (!stored) {
+        // Default to bottom middle position
+        stickPosition.value = 'bottom';
+        iconPosition.value.x = (windowWidth - iconWidth) / 2;
+        iconPosition.value.y = windowHeight - iconHeight - 17;
+        return;
+    }
     
     try {
         const data: StoredPosition = JSON.parse(stored);
-        const { width: iconWidth, height: iconHeight } = getIconSize();
-
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
         
         // Validate and clamp position to current screen bounds
         stickPosition.value = data.stick;
@@ -201,6 +209,7 @@ const detailPageOpen = ref(false);
 function clickHandler(){
     console.trace('clickHandler', detailPageOpen.value);
     if(!detailPageOpen.value){
+        displayMode.value = 'edit';
         detailPageOpen.value = true;
         popoverDialogRef.value?.open(tabContainerRef.value ?? undefined);
     }else{
@@ -210,6 +219,7 @@ function clickHandler(){
 
 function handlePopoverClose(){
     console.log('handlePopoverClose', detailPageOpen.value);
+    displayMode.value = 'view';
     detailPageOpen.value = false;
 }
 // end open detail page logic
@@ -277,7 +287,7 @@ function handlePopoverClose(){
     position: fixed;
     display: grid;
     place-items: center;
-    z-index: 9999;
+    z-index: 1001;
     border-radius: var(--app-border-radius-xl);
     isolation: isolate;
     // transition: all 0.3s ease;

@@ -147,7 +147,7 @@ const props = defineProps<{
   workspaceId: string
 }>()
 
-const router = useAppRouter()
+// const router = useAppRouter()
 const { $api } = useNuxtApp()
 const dataTableSync = useDataTableSync()
 
@@ -263,7 +263,7 @@ async function handleDelete() {
       method: 'DELETE',
     })
     ElMessage.success('Table deleted')
-    router.push(`/workspaces/${props.workspaceId}/tables`)
+    // router.push(`/workspaces/${props.workspaceId}/tables`)
   } catch (error: any) {
     if (error !== 'cancel') {
       ElMessage.error(error.data?.message || 'Failed to delete table')

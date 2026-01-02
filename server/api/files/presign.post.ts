@@ -27,9 +27,10 @@ import {
   buildWorkspaceFilePath,
   buildUserFilePath,
   buildSystemFilePath,
-} from '~/server/utils/minio'
-import { generateUUID } from '~/server/utils/uuid'
-import { files, type FileOwnerType } from '~/server/db/schema/files'
+} from '~~/server/utils/minio'
+import { generateUUID } from '~~/server/utils/uuid'
+import { files } from '~~/server/db/schema/files'
+import type { FileOwnerType } from '#shared/types/db'
 
 interface PresignRequest {
   action: 'upload' | 'download'

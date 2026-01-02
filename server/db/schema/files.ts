@@ -4,14 +4,13 @@
  * Tracks files stored in Minio for querying, ownership, and audit.
  */
 
-import { pgTable, text, integer, timestamp, boolean, jsonb, index, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, text, uuid, integer, timestamp, boolean, jsonb, index, uniqueIndex } from 'drizzle-orm/pg-core'
 import { users } from './users'
 import { workspaces } from './workspaces'
-
+import type {FileOwnerType} from '#shared/types/db'
 /**
  * File ownership type
  */
-export type FileOwnerType = 'system' | 'user' | 'workspace' | 'app'
 
 /**
  * Files table - tracks all files stored in Minio
@@ -30,15 +29,18 @@ export const files = pgTable('files', {
   size: integer('size').notNull(),              // Size in bytes
   etag: text('etag'),                           // Minio ETag for versioning
   
+  // Version tracking
+  documentVersion: integer('document_version').notNull().default(1),
+  
   // Ownership
   ownerType: text('owner_type').notNull().$type<FileOwnerType>(),
   ownerId: text('owner_id'),                    // User ID, Workspace ID, App ID, or null for system
   
   // For workspace/app files, link to workspace
-  workspaceId: text('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
   
   // Upload info
-  uploadedBy: text('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+  uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
   
   // Metadata
   metadata: jsonb('metadata').$type<Record<string, any>>(),  // Custom metadata

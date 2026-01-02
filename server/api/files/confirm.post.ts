@@ -22,8 +22,9 @@
  */
 
 import { db } from 'hub:db'
-import { getFileStat } from '~/server/utils/minio'
-import { files, type FileOwnerType } from '~/server/db/schema/files'
+import { getFileStat } from '~~/server/utils/minio'
+import { files } from '~~/server/db/schema/files'
+import type { FileOwnerType } from '#shared/types/db'
 
 interface ConfirmRequest {
   fileId: string

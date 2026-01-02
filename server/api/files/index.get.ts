@@ -17,7 +17,8 @@
 
 import { db } from 'hub:db'
 import { eq, and, like, isNull, or, desc } from 'drizzle-orm'
-import { files, type FileOwnerType } from '~/server/db/schema/files'
+import { files } from '~~/server/db/schema/files'
+import type { FileOwnerType } from '#shared/types/db'
 
 export default defineEventHandler(async (event) => {
   // Must be authenticated

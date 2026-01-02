@@ -19,7 +19,8 @@
 
 import { uploadFile, getMimeType, buildWorkspaceFilePath, buildUserFilePath, buildSystemFilePath } from '~~/server/utils/minio'
 import { generateUUID } from '~~/server/utils/uuid'
-import { files, type FileOwnerType } from '~~/server/db/schema/files'
+import { files } from '~~/server/db/schema/files'
+import type { FileOwnerType } from '#shared/types/db'
 import { db } from 'hub:db'
 
 export default defineEventHandler(async (event) => {
@@ -113,6 +114,12 @@ export default defineEventHandler(async (event) => {
     const mimeType = fileData.type || getMimeType(fileData.filename)
     
     // Upload to Minio
+    // Note: Sanitize metadata values to avoid invalid header characters
+    const sanitizeHeaderValue = (value: string) => {
+      // Remove or replace characters that are invalid in HTTP headers
+      return value.replace(/[^\x20-\x7E]/g, '_').replace(/\s+/g, '_')
+    }
+    
     const uploadResult = await uploadFile({
       bucketName,
       objectName: objectKey,
@@ -121,7 +128,7 @@ export default defineEventHandler(async (event) => {
       contentType: mimeType,
       metadata: {
         'x-amz-meta-file-id': fileId,
-        'x-amz-meta-original-name': fileData.filename,
+        'x-amz-meta-original-name': sanitizeHeaderValue(fileData.filename),
         'x-amz-meta-uploaded-by': user.id,
       },
     })

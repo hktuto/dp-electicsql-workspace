@@ -109,8 +109,20 @@ echo "🔍 Checking Electric health..."
 curl -s http://localhost:30000/v1/health || echo "Electric may still be initializing..."
 
 echo ""
+echo "⏳ Waiting for Nuxt dev server to rebuild schema..."
+sleep 3
+
+echo ""
+echo "🧹 Clearing Minio files..."
+curl -s -X POST http://localhost:3000/api/dev/minio-clear -H 'x-dev-secret: docpal-dev-secret' | jq .
+
+echo ""
 echo "🌱 Seeding database..."
 curl -s -X POST http://localhost:3000/api/dev/seed -H 'x-dev-secret: docpal-dev-secret' | jq .
+
+echo ""
+echo "📦 Seeding Minio files..."
+curl -s -X POST http://localhost:3000/api/dev/minio-seed -H 'x-dev-secret: docpal-dev-secret' | jq .
 
 echo ""
 echo "✅ Full reset complete!"

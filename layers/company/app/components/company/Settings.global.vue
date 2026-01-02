@@ -3,7 +3,7 @@
   const props = defineProps<{
     slug: string
   }>()
-  const router = useAppRouter()
+  // const router = useAppRouter()
   const { user } = useAuth()
   const companySync = useCompanySync()
   const inviteSync = useInviteSync()
@@ -94,11 +94,11 @@
         form.description = foundCompany.description || ''
       } else {
         ElMessage.error('Company not found')
-        router.push('/')
+        // router.push('/')
       }
     } catch (error) {
       ElMessage.error('Failed to load company')
-      router.push('/')
+      // router.push('/')
     } finally {
       loading.value = false
     }

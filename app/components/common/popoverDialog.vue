@@ -478,6 +478,7 @@ onClickOutside(popoverRef, (event) => {
 
 // Close on escape (but not if user is typing in an input)
 useEventListener(document, 'keydown', (e: KeyboardEvent) => {
+  if(!props.closeOnClickOutside) return;
   if (e.key === 'Escape' && visible.value) {
     const activeElement = document.activeElement as HTMLElement
     const isEditable = 
@@ -644,7 +645,7 @@ defineExpose({
 <style scoped lang="scss">
 .custom-popover {
   position: fixed;
-  z-index: 9999;
+  z-index: 1002;
   background: var(--el-bg-color);
   border: 1px solid var(--app-border-color);
   border-radius: var(--app-border-radius-m);

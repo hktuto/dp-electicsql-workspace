@@ -10,8 +10,8 @@
 
 import { db } from 'hub:db'
 import { eq, and, isNull } from 'drizzle-orm'
-import { downloadFile } from '~/server/utils/minio'
-import { files } from '~/server/db/schema/files'
+import { downloadFile } from '~~/server/utils/minio'
+import { files } from '~~/server/db/schema/files'
 
 export default defineEventHandler(async (event) => {
   const fileId = getRouterParam(event, 'id')
@@ -63,7 +63,7 @@ export default defineEventHandler(async (event) => {
     
     // Set response headers
     setHeader(event, 'Content-Type', fileRecord.mimeType)
-    setHeader(event, 'Content-Length', fileRecord.size.toString())
+    setHeader(event, 'Content-Length', fileRecord.size)
     setHeader(event, 'ETag', fileRecord.etag || '')
     
     // Set disposition (inline or download)

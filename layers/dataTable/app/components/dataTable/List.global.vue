@@ -111,7 +111,7 @@ const props = defineProps<{
   workspaceId: string
 }>()
 
-const router = useAppRouter()
+// const router = useAppRouter()
 const api = useAPI()
 const dataTableSync = useDataTableSync()
 
@@ -228,7 +228,7 @@ async function handleCreate() {
 // Navigate to table
 function navigateToTable(table: DataTable) {
   // TODO: Navigate to table view
-  router.push(`/workspaces/${props.workspaceId}/table/${table.slug}`)
+  // router.push(`/workspaces/${props.workspaceId}/table/${table.slug}`)
 }
 
 // Watch for changes

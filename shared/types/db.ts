@@ -1,4 +1,4 @@
-import { users, companies, workspaces, companyMembers, dataTables, dataTableColumns, tableMigrations } from 'hub:db:schema'
+import { users, companies, workspaces, companyMembers, dataTables, dataTableColumns, tableMigrations, files } from 'hub:db:schema'
 
 export type User = typeof users.$inferSelect
 export type Company = typeof companies.$inferSelect
@@ -7,6 +7,8 @@ export type CompanyMember = typeof companyMembers.$inferSelect
 export type DataTable = typeof dataTables.$inferSelect
 export type DataTableColumn = typeof dataTableColumns.$inferSelect
 export type TableMigration = typeof tableMigrations.$inferSelect
+export type File = typeof files.$inferSelect
+export type FileOwnerType = 'system' | 'user' | 'workspace' | 'app'
 
 export type MenuItem = {
   id: string

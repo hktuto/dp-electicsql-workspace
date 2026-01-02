@@ -13,6 +13,7 @@
     "db:seed": "curl -X POST http://localhost:3000/api/dev/seed -H 'x-dev-secret: docpal-dev-secret'",
     "db:reset": "bash scripts/reset-db.sh",
     "minio:seed": "curl -X POST http://localhost:3000/api/dev/minio-seed -H 'x-dev-secret: docpal-dev-secret'",
+    "minio:clear": "curl -X POST http://localhost:3000/api/dev/minio-clear -H 'x-dev-secret: docpal-dev-secret'",
     "docker:up": "docker compose -f ./docker/docker-compose.dev.yml up -d",
     "docker:down": "docker compose -f ./docker/docker-compose.dev.yml down",
     "docker:logs": "docker compose -f ./docker/docker-compose.dev.yml logs -f"

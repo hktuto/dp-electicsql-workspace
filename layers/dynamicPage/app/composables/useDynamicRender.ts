@@ -3,6 +3,7 @@ import { useRefHistory } from '@vueuse/core';
 
 
 interface DynamicRenderContext {
+    bucketRoot: Ref<string>,
     toggleEditMode: () => void
     save: () => void
     displayMode: Ref<'view' | 'edit'>
@@ -20,15 +21,17 @@ export const DynamicRenderProvider :InjectionKey<DynamicRenderContext> = Symbol(
 
 const useDisplayMode = () => useState<'view' | 'edit' >('dynamicRenderMode', () => 'view')
 export const useComponentState = () => useState<ComponentNode>('dynamicComponentState')
-
+export const useBucketRoot = () => useState<string>('bucket', () => 'docpal')
 export const useDynamicRenderProvider = (initState: ComponentNode) => {
     const displayMode = useDisplayMode()
     const componentState = useComponentState()
+    const bucketRoot = useBucketRoot()
     componentState.value = initState
 
     function toggleEditMode(){
         displayMode.value = displayMode.value === 'view' ? 'edit' : 'view'
     }
+    
     function save(){
         // TODO
     }
@@ -46,6 +49,7 @@ export const useDynamicRenderProvider = (initState: ComponentNode) => {
         redo,
         save,
         commit,
+        bucketRoot
     })
 
     return {
@@ -58,6 +62,7 @@ export const useDynamicRenderProvider = (initState: ComponentNode) => {
         redo,
         save,
         commit,
+        bucketRoot
     }
 }
 

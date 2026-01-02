@@ -15,6 +15,11 @@ const sections = ref([
         icon: 'lucide:component',
     },
     {
+        label: 'Files',
+        value: 'files',
+        icon: 'lucide:file',
+    },
+    {
         label: 'General',
         value: 'general',
         icon: 'mdi:cog',
@@ -46,6 +51,9 @@ const sections = ref([
                     </template>
                     <template v-else-if="currentSection === 'general'">
                         <LazyDynamicPageEditorSectionGeneral />
+                    </template>
+                    <template v-else-if="currentSection === 'files'">
+                        <LazyDynamicPageEditorSectionFiles />
                     </template>
                     <template #fallback>
                         <NuxtLoadingIndicator />

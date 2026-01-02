@@ -10,8 +10,8 @@
 
 import { db } from 'hub:db'
 import { eq, and, isNull } from 'drizzle-orm'
-import { deleteFile as deleteMinioFile } from '~/server/utils/minio'
-import { files } from '~/server/db/schema/files'
+import { deleteFile as deleteMinioFile } from '~~/server/utils/minio'
+import { files } from '~~/server/db/schema/files'
 
 export default defineEventHandler(async (event) => {
   const fileId = getRouterParam(event, 'id')
@@ -56,7 +56,8 @@ export default defineEventHandler(async (event) => {
     // TODO: Add more granular permission checks
     const canDelete = 
       fileRecord.uploadedBy === user.id ||
-      fileRecord.ownerId === user.id
+      fileRecord.ownerId === user.id ||
+      user.isSuperAdmin
       // || user has admin role for workspace
     
     if (!canDelete) {

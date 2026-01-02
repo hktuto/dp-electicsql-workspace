@@ -82,7 +82,7 @@ const emit = defineEmits<{
   closeMobile: []
 }>()
 
-const { currentPath, navigate } = useAppRouter()
+// const { currentPath, navigate } = useAppRouter()
 
 type MenuItem = {
   id: string
@@ -145,9 +145,9 @@ const menu = computed(() => {
 
 function isActive(item: MenuItem) {
   if (item.urlRule) {
-    return new RegExp(item.urlRule).test(currentPath.value)
+    // return new RegExp(item.urlRule).test(currentPath.value)
   }
-  return item.url === currentPath.value
+  // return item.url === currentPath.value
 }
 
 function toggleSidebarMode() {
@@ -158,7 +158,7 @@ function handleClick(item: MenuItem) {
   if (item.action) {
     item.action()
   } else if (item.url) {
-    navigate(item.url)
+    // navigate(item.url)
     emit('closeMobile')
   } else {
     console.warn('No url or action for menu item', item)
