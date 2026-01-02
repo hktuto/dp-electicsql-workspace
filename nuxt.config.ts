@@ -26,6 +26,16 @@ export default defineNuxtConfig({
     electricUrl: process.env.ELECTRIC_URL || 'http://localhost:30000',
     databaseUrl: process.env.DATABASE_URL || 'postgresql://docpal:docpal_dev@localhost:5432/docpal',
     
+    // Minio config (server-side only)
+    minio: {
+      endpoint: process.env.MINIO_ENDPOINT || 'localhost',
+      port: process.env.MINIO_PORT || '9000',
+      useSSL: process.env.MINIO_USE_SSL || 'false',
+      accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+      secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
+      bucket: process.env.MINIO_BUCKET || 'docpal',
+    },
+    
     // Public config (exposed to client)
     public: {
       // Electric URL for direct client connection (development)

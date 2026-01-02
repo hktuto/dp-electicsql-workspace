@@ -242,6 +242,8 @@ function handlePopoverClose(){
         </div>
         <CommonPopoverDialog
             ref="popoverDialogRef"
+            persistId="dynamicPageEditor"
+            :closeOnClickOutside="false"
             @close="handlePopoverClose"
         >
             <DynamicPageEditorContainer />

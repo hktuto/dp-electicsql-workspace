@@ -12,6 +12,7 @@
     "db:migrate": "npx nuxt db migrate",
     "db:seed": "curl -X POST http://localhost:3000/api/dev/seed -H 'x-dev-secret: docpal-dev-secret'",
     "db:reset": "bash scripts/reset-db.sh",
+    "minio:seed": "curl -X POST http://localhost:3000/api/dev/minio-seed -H 'x-dev-secret: docpal-dev-secret'",
     "docker:up": "docker compose -f ./docker/docker-compose.dev.yml up -d",
     "docker:down": "docker compose -f ./docker/docker-compose.dev.yml down",
     "docker:logs": "docker compose -f ./docker/docker-compose.dev.yml logs -f"
@@ -32,6 +33,7 @@
     "element-plus": "^2.12.0",
     "jose": "^6.1.3",
     "lodash-unified": "^1.0.3",
+    "minio": "^8.0.6",
     "nuxt": "^4.2.2",
     "openai": "^6.15.0",
     "postgres": "^3.4.7",

@@ -2,13 +2,139 @@
  * Dynamic Component & Page System Types
  * 
  * Type definitions for dynamic component rendering system.
+ * 
+ * Hierarchy: App → Pages → Layout → ComponentNodes
  */
+
+// ============================================
+// App Types
+// ============================================
+
+export type AppType = 'system' | 'user'
+
+/**
+ * App - Top-level container for a collection of pages
+ * 
+ * System apps: Built-in DocPal apps (auth, user home, workspace, company)
+ * User apps: Custom apps created within workspaces (booking, CRM, dashboards)
+ */
+export interface App {
+  id: string
+  type: AppType
+  workspaceId: string | null    // null for system apps
+  
+  // Display
+  title: string
+  description: string
+  icon?: string
+  
+  // Routing
+  baseUrl: string               // URL pattern, e.g., "/workspaces/:slug" or "/auth"
+  defaultPageId?: string        // Which page to show at baseUrl root
+  
+  // Shell/Navigation
+  navLayout: string             // Component ID for navigation shell
+                                // e.g., 'nav-sidebar', 'nav-tabs', 'nav-desktop', 'nav-minimal'
+  
+  // Content
+  pages: Page[]
+  
+  // Auth
+  isPublic: boolean
+  authRules?: AuthRule[]
+  
+  // Storage (Minio)
+  bucketPrefix: string          // Folder path for app static assets
+  
+  // Data Access
+  dataScope: DataScope
+  
+  // Metadata
+  meta?: AppMeta
+  status: 'draft' | 'published' | 'archived'
+  version: number
+  
+  createdAt?: string
+  updatedAt?: string
+}
+
+/**
+ * DataScope - Defines what data an app can access
+ */
+export interface DataScope {
+  type: 'system' | 'workspace'
+  
+  // For system apps: which system entities can be accessed
+  systemAccess?: ('users' | 'workspaces' | 'companies' | 'workflows')[]
+  
+  // For user apps: defaults to full workspace access
+  // Future: could restrict to specific tables, views, etc.
+}
+
+/**
+ * AppMeta - HTML meta and SEO settings for an app
+ */
+export interface AppMeta {
+  favicon?: string
+  themeColor?: string
+  ogImage?: string
+  ogTitle?: string
+  ogDescription?: string
+  [key: string]: any            // Allow additional meta fields
+}
+
+/**
+ * AuthRule - Access control rule (extend later)
+ */
+export interface AuthRule {
+  type: 'role' | 'permission' | 'custom'
+  value: string
+}
+
+// ============================================
+// Page Types
+// ============================================
+
+/**
+ * Page - A single page within an App
+ */
+export interface Page {
+  id: string
+  name: string
+  icon?: string
+  slug: string                  // URL segment within app
+  
+  // Layout
+  layout: string                // Component ID for page layout wrapper
+  content: ComponentNode[]      // Components placed inside the layout
+  
+  // Navigation
+  showInNav: boolean
+  navOrder: number
+  parentPageId?: string         // For nested navigation
+  
+  // Auth (page-level override)
+  requiresAuth: boolean
+  authRules?: AuthRule[]
+  
+  // Page-specific meta
+  meta?: PageMeta
+}
+
+/**
+ * PageMeta - Page-specific meta overrides
+ */
+export interface PageMeta {
+  title?: string
+  description?: string
+  [key: string]: any
+}
 
 // ============================================
 // Component Metadata
 // ============================================
 
-export type ComponentType = 'component' | 'container' | 'provider'
+export type ComponentType = 'component' | 'container' | 'provider' | 'nav-layout' | 'page-layout'
 
 /**
  * Component ComponentOption - defines component schema and requirements

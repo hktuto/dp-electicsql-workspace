@@ -17,6 +17,7 @@ interface Props {
   placement?: 'top' | 'top-start' | 'top-end' | 'bottom' | 'bottom-start' | 'bottom-end' | 'left' | 'left-start' | 'left-end' | 'right' | 'right-start' | 'right-end'
   offset?: number
   closeOnClickModal?: boolean
+  closeOnClickOutside?: boolean // If false, clicking outside won't close popover
   showClose?: boolean
   persistId?: string // If provided, save/restore size to localStorage
 }
@@ -33,6 +34,7 @@ const props = withDefaults(defineProps<Props>(), {
   offset: 8,
   width: '400px',
   closeOnClickModal: true,
+  closeOnClickOutside: true,
   showClose: true,
 })
 
@@ -449,6 +451,9 @@ async function close() {
 
 // Click outside to close (but not if clicking inside a nested popover or target element)
 onClickOutside(popoverRef, (event) => {
+  // Skip if closeOnClickOutside is disabled
+  if (!props.closeOnClickOutside) return
+  
   if (visible.value && !isMobile.value && targetElement.value) {
     const clickedElement = event.target as HTMLElement
     

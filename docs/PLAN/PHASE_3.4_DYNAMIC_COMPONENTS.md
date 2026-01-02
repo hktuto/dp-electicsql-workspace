@@ -2,120 +2,937 @@
 
 ## Overview
 
-Build a dynamic component rendering system that allows components to be defined, stored, and rendered from configuration. This phase lays the foundation for future AI-assisted app building while improving current code organization.
+Build a dynamic component rendering system that allows **Apps**, **Pages**, and **Components** to be defined, stored, and rendered from configuration. This phase lays the foundation for future AI-assisted app building while improving current code organization.
+
+**Key Insight:** We will use this system to build DocPal itself (dogfooding), ensuring the architecture is battle-tested.
 
 **Timing:** Perfect moment - we're already refactoring all components due to Electric SQL sync pattern changes.
 
 ---
 
+## Architecture Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                           DocPal                                │
+├─────────────────────────────┬───────────────────────────────────┤
+│       SYSTEM APPS           │          USER APPS                │
+│   (Built-in, code-managed)  │   (Created per workspace)         │
+├─────────────────────────────┼───────────────────────────────────┤
+│ • Auth (login, register)    │ • Public booking website          │
+│ • User Home (workspace list)│ • Sales CRM portal                │
+│ • Workspace Shell           │ • TV dashboard display            │
+│ • Company Management        │ • External client chat            │
+│ • Admin Panel               │ • Custom inventory app            │
+├─────────────────────────────┼───────────────────────────────────┤
+│ Data: users, workspaces,    │ Data: workspace tables,           │
+│ companies, system configs   │ views, dashboards, workflows      │
+└─────────────────────────────┴───────────────────────────────────┘
+
+Hierarchy:
+App → Pages → Layout → ComponentNodes
+```
+
+---
+
 ## Goals
 
-### Phase 3.4.1: Foundation (Do NOW) ⭐
-- Database schema for component definitions
+### Phase 3.4.1: Foundation (Complete) ✅
+- TypeScript types for App, Page, ComponentNode
 - Component metadata system (props, events, hooks)
 - Component registry and discovery
 - Dynamic renderer with security
-- Refactor existing components with metadata
+- Component versioning & migration system
 
-### Phase 3.4.2: Dynamic Pages (3-6 months)
-- Page definition storage
-- Runtime page composition
-- Provider injection system
-- Custom event handlers (sandboxed)
+### Phase 3.4.2: App System & POC (Current) 🔄
+- App architecture (system + user types)
+- NavLayout and PageLayout components
+- Routing integration with Apps
+- Full POC validation
 
-### Phase 3.4.3: Builder UI (6-12 months)
+### Phase 3.4.3: Database Migration (After POC)
+- Move from JSON files to database
+- API endpoints for CRUD
+- Electric SQL sync
+
+### Phase 3.4.4: Builder UI (Future)
 - Visual page builder
-- Component marketplace
+- App templates & cloning
+- App Creator App for marketers/admins
 - AI-assisted building
 
 ---
 
-## Architecture
+## Core Types
 
-### Component Types
+### App
+
+The top-level container for a collection of pages with shared configuration.
 
 ```typescript
-// Base types for all components
-type ComponentType = 'component' | 'container' | 'provider'
+type AppType = 'system' | 'user'
 
-// Component metadata (stored in DB + exported from .vue files)
-interface ComponentMeta {
-  id: string                    // Unique identifier (e.g., 'workspace-detail')
-  name: string                  // Display name
-  type: ComponentType
-  description: string           // For AI/humans to understand usage
-  category: string              // For organization (e.g., 'workspace', 'table', 'form')
+type App = {
+  id: string                    // UUID
+  type: AppType                 // 'system' = DocPal built-in, 'user' = workspace custom
+  workspaceId: string | null    // null for system apps
   
-  // Schema definitions (JSON Schema)
-  props?: JSONSchema            // Prop types and validation
-  events?: JSONSchema           // Emitted events
-  slots?: JSONSchema            // Available slots
-  exposes?: JSONSchema          // Exposed methods/refs (for providers)
+  // Display
+  title: string
+  description: string
+  icon?: string
   
-  // Requirements
-  requiredProviders?: string[]  // Provider IDs needed
-  requiredParent?: string[]     // Valid parent component IDs
+  // Routing
+  baseUrl: string               // URL pattern, e.g., "/workspaces/:slug" or "/auth"
+  defaultPageId?: string        // Which page to show at baseUrl root
   
+  // Shell/Navigation
+  navLayout: string             // Component ID for navigation shell
+                                // e.g., 'nav-sidebar', 'nav-tabs', 'nav-desktop', 'nav-minimal'
+  
+  // Content (inline JSON for now)
+  pages: Page[]
+  
+  // Auth
+  isPublic: boolean             // Public = no auth required
+  authRules?: AuthRule[]        // Extend later for role-based access
+  
+  // Storage (Minio)
+  bucketPrefix: string          // Folder path for app static assets (images, docs)
+                                // e.g., "system/auth/" or "workspaces/{id}/apps/booking/"
+  
+  // Data Access
+  dataScope: DataScope
+  
+  // Metadata
+  meta?: AppMeta                // HTML meta, SEO, theme settings
+  status: 'draft' | 'published' | 'archived'
+  version: number
+  
+  createdAt?: Date
+  updatedAt?: Date
 }
 
-// Page tree node (stored in DB)
-interface PageNode {
+type DataScope = {
+  type: 'system' | 'workspace'
+  
+  // For system apps: which system data can be accessed
+  systemAccess?: ('users' | 'workspaces' | 'companies' | 'workflows')[]
+  
+  // For user apps: defaults to full workspace data access
+  // Could restrict later: tables?: string[], views?: string[]
+}
+
+type AppMeta = {
+  favicon?: string
+  themeColor?: string
+  ogImage?: string
+  ogTitle?: string
+  ogDescription?: string
+  // ... standard HTML meta fields
+}
+
+type AuthRule = {
+  // Extend later for role-based access
+  type: 'role' | 'permission' | 'custom'
+  value: string
+}
+```
+
+### Page
+
+A single page within an App, containing layout and content.
+
+```typescript
+type Page = {
   id: string
-  componentId: string           // References ComponentMeta.id
+  name: string
+  icon?: string
+  slug: string                  // URL segment within app (e.g., "settings", "dashboard")
+  
+  // Layout
+  layout: string                // Component ID for page layout wrapper
+                                // e.g., 'layout-page', 'layout-grid', 'layout-centered'
+  content: ComponentNode[]      // Components placed inside the layout
+  
+  // Navigation
+  showInNav: boolean            // Show in app navigation
+  navOrder: number              // Sort order in navigation
+  parentPageId?: string         // For nested navigation (submenus)
+  
+  // Auth (page-level override)
+  requiresAuth: boolean
+  authRules?: AuthRule[]
+  
+  // Page-specific meta (overrides app meta)
+  meta?: PageMeta
+}
+
+type PageMeta = {
+  title?: string                // Browser tab title
+  description?: string          // Meta description
+  // ... page-specific overrides
+}
+```
+
+### ComponentNode
+
+A node in the component tree that gets rendered dynamically.
+
+```typescript
+type ComponentNode = {
+  id: string                    // Unique within tree
+  componentId: string           // References ComponentSchema.id
+  version?: number              // Component version (for migrations)
   
   // Configuration
   props?: Record<string, any>
-  eventHandlers?: Record<string, string>  // Safe expression strings
+  eventHandlers?: Record<string, any>  // JSONLogic expressions
   customStyle?: Record<string, any>
+  customClass?: string
   
-  // Tree structure
-  children?: PageNode[]
+  // Slots (named children)
+  slots?: {
+    default?: ComponentNode[]
+    [slotName: string]: ComponentNode[] | undefined
+  }
+  
+  // Legacy: direct children (use slots.default instead)
+  children?: ComponentNode[]
 }
+```
 
-// Page definition (stored in DB)
-interface PageDefinition {
-  id: string
-  workspaceId: string
-  name: string
-  urlPattern: string            // Regex pattern to match URL
+### ComponentSchema
+
+Metadata for a registered component (stored in registry).
+
+```typescript
+type ComponentType = 'component' | 'container' | 'provider' | 'nav-layout' | 'page-layout'
+
+type ComponentSchema = {
+  id: string                    // Unique identifier
+  name: string                  // Display name
+  type: ComponentType
+  description: string           // For AI/humans
+  category: string              // For organization
+  icon?: string                 // For UI display
   
-  // Root configuration
-  rootNode: PageNode
+  // Version for migrations
+  version: number
+  versionName?: string          // e.g., "1.0.0"
   
-  // Global page settings
-  providers?: string[]          // Provider component IDs to inject
-  globalFunctions?: Record<string, string>  // Safe expression strings
-  customCSS?: string
+  // JSON Schema definitions
+  props?: JSONSchema
+  events?: JSONSchema
+  slots?: JSONSchema
+  exposes?: JSONSchema
+  
+  // Requirements
+  requiredProviders?: string[]
+  requiredParent?: string[]
+  
+  // Metadata
+  isSystem?: boolean            // System component (can't be deleted)
+  isPublic?: boolean            // Available to all workspaces
 }
 ```
 
 ---
 
-## Database Schema
+## System Components
 
-### `ui_components` Table
+### NavLayout Components (App Shell)
+
+| ID | Description | Use Case |
+|----|-------------|----------|
+| `nav-sidebar` | Sidebar navigation + content area | Main workspace app |
+| `nav-topbar` | Top navigation bar | User home |
+| `nav-tabs` | Tab-based navigation | Multi-page forms |
+| `nav-desktop` | Virtual desktop / dock style | Power users |
+| `nav-minimal` | No navigation, just content | Auth pages, landing |
+| `nav-none` | Fullscreen, no chrome | TV dashboards, kiosks |
+
+### PageLayout Components (Page Wrapper)
+
+| ID | Description | Use Case |
+|----|-------------|----------|
+| `layout-page` | Standard scrollable page | Most pages |
+| `layout-grid` | CSS Grid layout | Dashboards, widgets |
+| `layout-centered` | Centered content | Login, forms |
+| `layout-sidebar-submenu` | Page with sub-navigation | Settings pages |
+| `layout-fullscreen` | Edge-to-edge, no padding | Full-screen views |
+| `layout-waterfall` | Masonry/waterfall | Card galleries |
+| `layout-split` | Resizable split panes | Editor views |
+
+---
+
+## System Apps Definition
+
+### Example: Auth App
+
+```typescript
+const authApp: App = {
+  id: 'app-auth',
+  type: 'system',
+  workspaceId: null,
+  
+  title: 'Authentication',
+  description: 'Login and registration',
+  icon: 'i-heroicons-key',
+  
+  baseUrl: '/auth',
+  defaultPageId: 'login',
+  
+  navLayout: 'nav-minimal',
+  
+  pages: [
+    {
+      id: 'login',
+      name: 'Login',
+      slug: 'login',
+      layout: 'layout-centered',
+      content: [
+        {
+          id: 'login-form',
+          componentId: 'auth-login-form',
+          props: { redirectTo: '/' }
+        }
+      ],
+      showInNav: false,
+      navOrder: 0,
+      requiresAuth: false
+    },
+    {
+      id: 'register',
+      name: 'Register',
+      slug: 'register',
+      layout: 'layout-centered',
+      content: [
+        {
+          id: 'register-form',
+          componentId: 'auth-register-form',
+          props: {}
+        }
+      ],
+      showInNav: false,
+      navOrder: 1,
+      requiresAuth: false
+    },
+    {
+      id: 'forgot-password',
+      name: 'Forgot Password',
+      slug: 'forgot-password',
+      layout: 'layout-centered',
+      content: [
+        {
+          id: 'forgot-form',
+          componentId: 'auth-forgot-password-form',
+          props: {}
+        }
+      ],
+      showInNav: false,
+      navOrder: 2,
+      requiresAuth: false
+    }
+  ],
+  
+  isPublic: true,
+  dataScope: { type: 'system', systemAccess: ['users'] },
+  bucketPrefix: 'system/auth/',
+  
+  meta: {
+    ogTitle: 'DocPal - Sign In',
+    themeColor: '#4F46E5'
+  },
+  status: 'published',
+  version: 1
+}
+```
+
+### Example: User Home App
+
+```typescript
+const userHomeApp: App = {
+  id: 'app-user-home',
+  type: 'system',
+  workspaceId: null,
+  
+  title: 'Home',
+  description: 'User dashboard and workspace list',
+  icon: 'i-heroicons-home',
+  
+  baseUrl: '/',
+  defaultPageId: 'workspaces',
+  
+  navLayout: 'nav-topbar',
+  
+  pages: [
+    {
+      id: 'workspaces',
+      name: 'Workspaces',
+      slug: '',
+      layout: 'layout-page',
+      content: [
+        {
+          id: 'workspace-list',
+          componentId: 'workspace-list',
+          props: {}
+        }
+      ],
+      showInNav: true,
+      navOrder: 0,
+      requiresAuth: true
+    },
+    {
+      id: 'settings',
+      name: 'Settings',
+      slug: 'settings',
+      layout: 'layout-page',
+      content: [
+        {
+          id: 'user-settings',
+          componentId: 'user-settings-form',
+          props: {}
+        }
+      ],
+      showInNav: true,
+      navOrder: 1,
+      requiresAuth: true
+    }
+  ],
+  
+  isPublic: false,
+  dataScope: { type: 'system', systemAccess: ['workspaces', 'companies', 'users'] },
+  bucketPrefix: 'system/user-home/',
+  
+  status: 'published',
+  version: 1
+}
+```
+
+### Example: Workspace App
+
+```typescript
+const workspaceApp: App = {
+  id: 'app-workspace',
+  type: 'system',
+  workspaceId: null,  // Template - instantiated per workspace
+  
+  title: 'Workspace',
+  description: 'Main workspace application',
+  icon: 'i-heroicons-squares-2x2',
+  
+  baseUrl: '/workspaces/:slug',
+  defaultPageId: 'dashboard',
+  
+  navLayout: 'nav-sidebar',
+  
+  pages: [
+    {
+      id: 'dashboard',
+      name: 'Dashboard',
+      icon: 'i-heroicons-chart-bar',
+      slug: '',
+      layout: 'layout-page',
+      content: [
+        {
+          id: 'workspace-dashboard',
+          componentId: 'workspace-dashboard',
+          props: {}
+        }
+      ],
+      showInNav: true,
+      navOrder: 0,
+      requiresAuth: true
+    },
+    {
+      id: 'tables',
+      name: 'Tables',
+      icon: 'i-heroicons-table-cells',
+      slug: 'tables',
+      layout: 'layout-page',
+      content: [
+        {
+          id: 'table-list',
+          componentId: 'data-table-list',
+          props: {}
+        }
+      ],
+      showInNav: true,
+      navOrder: 1,
+      requiresAuth: true
+    },
+    {
+      id: 'table-detail',
+      name: 'Table',
+      slug: 'tables/:tableId',
+      layout: 'layout-page',
+      content: [
+        {
+          id: 'table-viewer',
+          componentId: 'data-table-viewer',
+          props: {}  // tableId from route params
+        }
+      ],
+      showInNav: false,
+      navOrder: 0,
+      requiresAuth: true
+    },
+    {
+      id: 'settings',
+      name: 'Settings',
+      icon: 'i-heroicons-cog-6-tooth',
+      slug: 'settings',
+      layout: 'layout-sidebar-submenu',
+      content: [
+        {
+          id: 'workspace-settings',
+          componentId: 'workspace-settings-form',
+          props: {}
+        }
+      ],
+      showInNav: true,
+      navOrder: 99,
+      requiresAuth: true
+    }
+  ],
+  
+  isPublic: false,
+  dataScope: { type: 'workspace' },  // Full workspace access
+  bucketPrefix: 'workspaces/:workspaceId/',
+  
+  status: 'published',
+  version: 1
+}
+```
+
+### Example: Company App
+
+```typescript
+const companyApp: App = {
+  id: 'app-company',
+  type: 'system',
+  workspaceId: null,
+  
+  title: 'Company',
+  description: 'Company management',
+  icon: 'i-heroicons-building-office',
+  
+  baseUrl: '/company/:slug',
+  defaultPageId: 'members',
+  
+  navLayout: 'nav-sidebar',
+  
+  pages: [
+    {
+      id: 'members',
+      name: 'Members',
+      icon: 'i-heroicons-users',
+      slug: 'members',
+      layout: 'layout-page',
+      content: [
+        {
+          id: 'member-list',
+          componentId: 'company-member-list',
+          props: {}
+        }
+      ],
+      showInNav: true,
+      navOrder: 0,
+      requiresAuth: true
+    },
+    {
+      id: 'settings',
+      name: 'Settings',
+      icon: 'i-heroicons-cog-6-tooth',
+      slug: 'settings',
+      layout: 'layout-page',
+      content: [
+        {
+          id: 'company-settings',
+          componentId: 'company-settings-form',
+          props: {}
+        }
+      ],
+      showInNav: true,
+      navOrder: 1,
+      requiresAuth: true
+    }
+  ],
+  
+  isPublic: false,
+  dataScope: { type: 'system', systemAccess: ['companies', 'users', 'workspaces'] },
+  bucketPrefix: 'companies/:companyId/',
+  
+  status: 'published',
+  version: 1
+}
+```
+
+---
+
+## User Apps (Examples)
+
+### Public Booking App
+
+```typescript
+const bookingApp: App = {
+  id: 'uuid-booking-app',
+  type: 'user',
+  workspaceId: 'workspace-123',
+  
+  title: 'Public Booking',
+  description: 'Customer booking portal',
+  icon: 'i-heroicons-calendar',
+  
+  baseUrl: '/workspaces/:slug/apps/booking',
+  defaultPageId: 'book',
+  
+  navLayout: 'nav-minimal',
+  
+  pages: [
+    {
+      id: 'book',
+      name: 'Book Appointment',
+      slug: '',
+      layout: 'layout-centered',
+      content: [
+        {
+          id: 'booking-form',
+          componentId: 'booking-form',
+          props: { showAvailability: true }
+        }
+      ],
+      showInNav: false,
+      navOrder: 0,
+      requiresAuth: false  // Public!
+    },
+    {
+      id: 'confirm',
+      name: 'Confirmation',
+      slug: 'confirm/:bookingId',
+      layout: 'layout-centered',
+      content: [
+        {
+          id: 'booking-confirmation',
+          componentId: 'booking-confirmation',
+          props: {}
+        }
+      ],
+      showInNav: false,
+      navOrder: 1,
+      requiresAuth: false
+    }
+  ],
+  
+  isPublic: true,
+  dataScope: { type: 'workspace' },
+  bucketPrefix: 'workspaces/workspace-123/apps/booking/',
+  
+  meta: {
+    ogTitle: 'Book Your Appointment',
+    ogDescription: 'Schedule your next visit with us'
+  },
+  status: 'published',
+  version: 1
+}
+```
+
+### Sales CRM App
+
+```typescript
+const crmApp: App = {
+  id: 'uuid-crm-app',
+  type: 'user',
+  workspaceId: 'workspace-123',
+  
+  title: 'Sales CRM',
+  description: 'Customer relationship management',
+  icon: 'i-heroicons-user-group',
+  
+  baseUrl: '/workspaces/:slug/apps/crm',
+  defaultPageId: 'customers',
+  
+  navLayout: 'nav-sidebar',
+  
+  pages: [
+    {
+      id: 'customers',
+      name: 'Customers',
+      icon: 'i-heroicons-users',
+      slug: '',
+      layout: 'layout-page',
+      content: [
+        {
+          id: 'customer-table',
+          componentId: 'data-table-viewer',
+          props: { tableId: 'customers-table' }
+        }
+      ],
+      showInNav: true,
+      navOrder: 0,
+      requiresAuth: true
+    },
+    {
+      id: 'deals',
+      name: 'Deals',
+      icon: 'i-heroicons-currency-dollar',
+      slug: 'deals',
+      layout: 'layout-page',
+      content: [
+        {
+          id: 'deals-board',
+          componentId: 'kanban-board',
+          props: { tableId: 'deals-table' }
+        }
+      ],
+      showInNav: true,
+      navOrder: 1,
+      requiresAuth: true
+    }
+  ],
+  
+  isPublic: false,
+  dataScope: { type: 'workspace' },
+  bucketPrefix: 'workspaces/workspace-123/apps/crm/',
+  
+  status: 'published',
+  version: 1
+}
+```
+
+### TV Dashboard App
+
+```typescript
+const tvDashboardApp: App = {
+  id: 'uuid-tv-dashboard',
+  type: 'user',
+  workspaceId: 'workspace-123',
+  
+  title: 'TV Dashboard',
+  description: 'Big screen display for office',
+  icon: 'i-heroicons-tv',
+  
+  baseUrl: '/workspaces/:slug/apps/tv',
+  defaultPageId: 'main',
+  
+  navLayout: 'nav-none',  // No navigation, fullscreen
+  
+  pages: [
+    {
+      id: 'main',
+      name: 'Dashboard',
+      slug: '',
+      layout: 'layout-fullscreen',
+      content: [
+        {
+          id: 'kpi-grid',
+          componentId: 'dashboard-grid',
+          props: { autoRefresh: 60 },
+          slots: {
+            default: [
+              { id: 'sales-chart', componentId: 'chart-widget', props: { type: 'bar' } },
+              { id: 'orders-count', componentId: 'metric-widget', props: { label: 'Orders' } },
+              { id: 'revenue', componentId: 'metric-widget', props: { label: 'Revenue' } }
+            ]
+          }
+        }
+      ],
+      showInNav: false,
+      navOrder: 0,
+      requiresAuth: false  // Public display
+    }
+  ],
+  
+  isPublic: true,
+  dataScope: { type: 'workspace' },
+  bucketPrefix: 'workspaces/workspace-123/apps/tv/',
+  
+  status: 'published',
+  version: 1
+}
+```
+
+---
+
+## Routing Flow
+
+```
+User visits URL
+       ↓
+┌─────────────────────────────────────┐
+│  1. Match URL against app.baseUrl   │
+│     patterns (sorted by specificity)│
+│     e.g., /workspaces/:slug matches │
+│     app-workspace                   │
+└─────────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────┐
+│  2. Load App definition             │
+│     - System apps: from JSON/code   │
+│     - User apps: from DB            │
+└─────────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────┐
+│  3. Match remaining path to page    │
+│     e.g., /settings matches page    │
+│     with slug: 'settings'           │
+│     Use defaultPageId if root       │
+└─────────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────┐
+│  4. Check auth                      │
+│     - App level: app.isPublic       │
+│     - Page level: page.requiresAuth │
+│     Redirect to /auth/login if fail │
+└─────────────────────────────────────┘
+       ↓
+┌─────────────────────────────────────┐
+│  5. Render                          │
+│     a. NavLayout (app shell)        │
+│     b. PageLayout (page wrapper)    │
+│     c. Page.content (components)    │
+└─────────────────────────────────────┘
+```
+
+### URL Examples
+
+| URL | App | Page | Notes |
+|-----|-----|------|-------|
+| `/auth/login` | app-auth | login | Public |
+| `/` | app-user-home | workspaces | Requires auth |
+| `/settings` | app-user-home | settings | User settings |
+| `/workspaces/my-shop` | app-workspace | dashboard | Workspace home |
+| `/workspaces/my-shop/tables` | app-workspace | tables | Table list |
+| `/workspaces/my-shop/tables/abc123` | app-workspace | table-detail | Specific table |
+| `/company/acme/members` | app-company | members | Company members |
+| `/workspaces/my-shop/apps/booking` | booking-app (user) | book | Public booking |
+| `/workspaces/my-shop/apps/crm/deals` | crm-app (user) | deals | CRM deals |
+
+---
+
+## Implementation Steps
+
+### Phase 3.4.2: App System & POC (Current)
+
+#### Step 1: Update Types ✅
+- [x] Add App type to `shared/dynamicComponent/dynamic-page.ts`
+- [x] Add Page type with new structure
+- [x] Add DataScope, AppMeta, PageMeta types
+- [ ] Update ComponentNode with slots support
+
+#### Step 2: Create System Apps JSON
+- [ ] Create `app/data/apps/` folder
+- [ ] Create `app-auth.json`
+- [ ] Create `app-user-home.json`
+- [ ] Create `app-workspace.json`
+- [ ] Create `app-company.json`
+
+#### Step 3: Build NavLayout Components
+- [ ] `NavSidebar.global.vue` - Sidebar navigation
+- [ ] `NavTopbar.global.vue` - Top navigation
+- [ ] `NavMinimal.global.vue` - No navigation
+- [ ] `NavNone.global.vue` - Fullscreen, no chrome
+
+#### Step 4: Build PageLayout Components
+- [ ] `LayoutPage.global.vue` - Standard page
+- [ ] `LayoutCentered.global.vue` - Centered content
+- [ ] `LayoutGrid.global.vue` - Grid layout
+- [ ] `LayoutFullscreen.global.vue` - Edge-to-edge
+
+#### Step 5: App Router Integration
+- [ ] Create `useAppRouter` composable
+- [ ] Match URL to App
+- [ ] Match remaining path to Page
+- [ ] Extract route params
+- [ ] Handle 404s
+
+#### Step 6: App Renderer
+- [ ] Create `AppRenderer.vue` - Renders full app
+- [ ] Inject NavLayout
+- [ ] Inject PageLayout
+- [ ] Render page content via DynamicRenderer
+
+#### Step 7: POC Testing
+- [ ] Test all system apps render correctly
+- [ ] Test navigation between apps
+- [ ] Test navigation between pages within app
+- [ ] Test route param passing
+- [ ] Test auth flow
+- [ ] Test 404 handling
+
+---
+
+### Phase 3.4.3: Database Migration (After POC)
+
+#### Prerequisites
+- All POC tests passing
+- Schema is stable and validated
+- No major design changes anticipated
+
+#### Database Schema
 
 ```sql
+-- Apps table
+CREATE TABLE apps (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL CHECK (type IN ('system', 'user')),
+  workspace_id TEXT REFERENCES workspaces(id) ON DELETE CASCADE,
+  
+  title TEXT NOT NULL,
+  description TEXT,
+  icon TEXT,
+  
+  base_url TEXT NOT NULL,
+  default_page_id TEXT,
+  nav_layout TEXT NOT NULL,
+  
+  -- Inline JSON for pages
+  pages JSONB NOT NULL,
+  
+  is_public BOOLEAN DEFAULT false,
+  auth_rules JSONB,
+  
+  bucket_prefix TEXT,
+  data_scope JSONB NOT NULL,
+  meta JSONB,
+  
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  version INTEGER DEFAULT 1,
+  
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  UNIQUE(workspace_id, base_url)
+);
+
+CREATE INDEX idx_apps_workspace ON apps(workspace_id);
+CREATE INDEX idx_apps_type ON apps(type);
+CREATE INDEX idx_apps_base_url ON apps(base_url);
+
+-- Component schemas table (existing, updated)
 CREATE TABLE ui_components (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('component', 'container', 'provider')),
+  type TEXT NOT NULL CHECK (type IN ('component', 'container', 'provider', 'nav-layout', 'page-layout')),
   description TEXT,
   category TEXT,
+  icon TEXT,
   
-  -- JSON Schema definitions
+  version INTEGER DEFAULT 1,
+  version_name TEXT,
+  
   props_schema JSONB,
   events_schema JSONB,
   slots_schema JSONB,
   exposes_schema JSONB,
   
-  -- Requirements
   required_providers TEXT[],
   required_parent TEXT[],
   
-  -- Metadata
-  is_system BOOLEAN DEFAULT false,  -- System components (can't be deleted)
-  is_public BOOLEAN DEFAULT false,  -- Available to all workspaces
+  is_system BOOLEAN DEFAULT false,
+  is_public BOOLEAN DEFAULT true,
+  
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -124,820 +941,33 @@ CREATE INDEX idx_ui_components_category ON ui_components(category);
 CREATE INDEX idx_ui_components_type ON ui_components(type);
 ```
 
-### `workspace_pages` Table
+#### API Endpoints
 
-```sql
-CREATE TABLE workspace_pages (
-  id TEXT PRIMARY KEY,
-  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  url_pattern TEXT NOT NULL,
-  
-  -- Page tree (JSONB for now, could normalize later)
-  root_node JSONB NOT NULL,
-  
-  -- Global settings
-  providers TEXT[],
-  global_functions JSONB,
-  custom_css TEXT,
-  
-  -- Metadata
-  is_active BOOLEAN DEFAULT true,
-  created_by TEXT REFERENCES users(id),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  
-  UNIQUE(workspace_id, url_pattern)
-);
+```
+# Apps
+GET    /api/apps                      # List all accessible apps
+GET    /api/apps/:id                  # Get app by ID
+POST   /api/workspaces/:id/apps       # Create user app
+PUT    /api/workspaces/:id/apps/:id   # Update user app
+DELETE /api/workspaces/:id/apps/:id   # Delete user app
 
-CREATE INDEX idx_workspace_pages_workspace ON workspace_pages(workspace_id);
+# Components
+GET    /api/components                # List all component schemas
+GET    /api/components/:id            # Get component schema
 ```
 
 ---
 
-## Implementation Steps
-
-### Step 1: Component Metadata System
-
-**Goal:** Make existing components "discoverable" and type-safe.
-
-```typescript
-// layers/workspace/app/components/workspace/Detail.global.vue
-
-// Export component metadata (NEW)
-export const componentMeta: ComponentMeta = {
-  id: 'workspace-detail',
-  name: 'Workspace Detail',
-  type: 'component',
-  description: 'Displays workspace details and content',
-  category: 'workspace',
-  
-  props: {
-    type: 'object',
-    properties: {
-      slug: { 
-        type: 'string', 
-        description: 'Workspace slug' 
-      }
-    },
-    required: ['slug']
-  },
-  
-  events: {
-    type: 'object',
-    properties: {
-      'workspace-loaded': {
-        description: 'Emitted when workspace data is loaded',
-        payload: { type: 'object' }
-      }
-    }
-  },
-  
-  requiredProviders: ['company-context'],
-  
-  componentPath: 'layers/workspace/app/components/workspace/Detail.global.vue'
-}
-
-// Existing component code...
-```
-
-**Auto-discovery script:** Scan all `.global.vue` files and populate `ui_components` table.
-
----
-
-### Step 2: Component Registry
-
-**Goal:** Runtime component lookup and validation.
-
-```typescript
-// app/composables/useComponentRegistry.ts
-
-interface ComponentRegistry {
-  [componentId: string]: {
-    meta: ComponentMeta
-    component: Component  // Vue component
-  }
-}
-
-export function useComponentRegistry() {
-  const registry = useState<ComponentRegistry>('componentRegistry', () => ({}))
-  
-  // Register a component
-  const register = (meta: ComponentMeta, component: Component) => {
-    registry.value[meta.id] = { meta, component }
-  }
-  
-  // Get component by ID
-  const get = (componentId: string) => {
-    return registry.value[componentId]
-  }
-  
-  // Validate component usage
-  const validate = (node: PageNode, parentContext?: string[]) => {
-    const comp = get(node.componentId)
-    if (!comp) throw new Error(`Component not found: ${node.componentId}`)
-    
-    // Validate props against schema
-    if (comp.meta.props) {
-      // Use Ajv or similar JSON Schema validator
-    }
-    
-    // Check required providers
-    // Check parent constraints
-    
-    return true
-  }
-  
-  // Auto-register all global components
-  const autoRegister = () => {
-    // Scan all .global.vue files
-    // Extract componentMeta exports
-    // Register each one
-  }
-  
-  return { registry, register, get, validate, autoRegister }
-}
-```
-
----
-
-### Step 3: Dynamic Component Renderer
-
-**Goal:** Safely render component trees from configuration.
-
-```vue
-<!-- app/components/DynamicRenderer.vue -->
-
-<script setup lang="ts">
-import type { PageNode } from '#shared/types/dynamic-page'
-
-interface Props {
-  node: PageNode
-  context?: Record<string, any>  // Injected context from providers
-}
-
-const props = defineProps<Props>()
-const registry = useComponentRegistry()
-
-// Get component from registry
-const componentDef = computed(() => {
-  const def = registry.get(props.node.componentId)
-  if (!def) {
-    console.error(`Component not found: ${props.node.componentId}`)
-    return null
-  }
-  return def
-})
-
-// Validate and bind props
-const boundProps = computed(() => {
-  if (!componentDef.value) return {}
-  
-  // Merge static props + dynamic context
-  const merged = { ...props.node.props }
-  
-  // TODO: Evaluate safe expressions (e.g., props.slug could be "{{route.params.slug}}")
-  // Use a safe evaluator, NOT eval()
-  
-  return merged
-})
-
-// Event handlers (safe evaluation)
-const boundEvents = computed(() => {
-  if (!props.node.eventHandlers) return {}
-  
-  const handlers: Record<string, Function> = {}
-  
-  for (const [event, expression] of Object.entries(props.node.eventHandlers)) {
-    handlers[event] = (...args: any[]) => {
-      // TODO: Safely evaluate expression with context
-      // Use JSONLogic or custom safe evaluator
-      console.log(`Event ${event}:`, args)
-    }
-  }
-  
-  return handlers
-})
-</script>
-
-<template>
-  <component
-    v-if="componentDef"
-    :is="componentDef.component"
-    v-bind="boundProps"
-    v-on="boundEvents"
-    :style="node.customStyle"
-  >
-    <!-- Recursively render children -->
-    <template v-if="node.children?.length">
-      <DynamicRenderer
-        v-for="child in node.children"
-        :key="child.id"
-        :node="child"
-        :context="context"
-      />
-    </template>
-  </component>
-  
-  <div v-else class="component-error">
-    Component not found: {{ node.componentId }}
-  </div>
-</template>
-```
-
----
-
-### Step 4: Safe Expression Evaluator
-
-**Critical:** Never use `eval()` or `new Function()` with user input.
-
-**Options:**
-1. **JSONLogic** - Safe, declarative logic
-2. **Expression parser** - Custom AST parser with whitelist
-3. **Template strings only** - No logic, just variable substitution
-
-**Recommended: JSONLogic for Phase 1**
-
-```typescript
-// app/utils/safeEvaluator.ts
-import jsonLogic from 'json-logic-js'
-
-export function evaluateExpression(
-  expression: any,  // JSONLogic expression
-  context: Record<string, any>
-): any {
-  try {
-    return jsonLogic.apply(expression, context)
-  } catch (err) {
-    console.error('Expression evaluation error:', err)
-    return undefined
-  }
-}
-
-// Example usage:
-// expression: { "var": "route.params.slug" }
-// context: { route: { params: { slug: "my-workspace" } } }
-// result: "my-workspace"
-```
-
----
-
-## Refactoring Strategy
-
-### For Each Component Layer:
-
-1. **Add metadata export** to each `.global.vue` file
-2. **Define prop schemas** using JSON Schema
-3. **Document events** with payload schemas
-4. **Register on startup** in layer's plugin
-
-### Example Migration:
-
-**Before:**
-```vue
-<!-- WorkspaceDetail.global.vue -->
-<script setup lang="ts">
-const props = defineProps<{ slug: string }>()
-// ... component code
-</script>
-```
-
-**After:**
-```vue
-<!-- WorkspaceDetail.global.vue -->
-<script setup lang="ts">
-// Metadata export
-export const componentMeta: ComponentMeta = {
-  id: 'workspace-detail',
-  // ... (shown above)
-}
-
-// Same component code
-const props = defineProps<{ slug: string }>()
-// ...
-</script>
-```
-
-No functional changes to components, just adding metadata.
-
----
-
-## Benefits of Doing This NOW
-
-1. **Already refactoring** - No wasted effort
-2. **Better architecture** - Cleaner, more maintainable components
-3. **Type safety** - JSON Schema validation at runtime
-4. **Future-proof** - Foundation for AI building
-5. **Documentation** - Components self-document
-6. **Testing** - Easier to generate test cases from schemas
-7. **Dogfooding** - We use our own system
-
----
-
-## What NOT to Build Yet
-
-### Skip for now:
-- ❌ Visual page builder UI
-- ❌ Drag-and-drop editor
-- ❌ Component marketplace
-- ❌ Custom event handler editor
-- ❌ AI integration
-
-### Why:
-- Still learning what abstractions work
-- Need to validate with real usage
-- Phase 3.4.1 provides foundation without commitment
-
----
-
-## Testing Strategy
-
-### Phase 3.4.1:
-1. **Hardcoded usage** - Define page trees in code, render dynamically
-2. **Validate existing pages** - Ensure all current pages work with new system
-3. **Component metadata** - Verify all components have valid schemas
-
-### Phase 3.4.2:
-1. **DB-loaded pages** - Store one test page in DB, load and render
-2. **Custom props** - Test dynamic prop binding
-3. **Event handlers** - Test safe expression evaluation
-
----
-
-## Migration Path
-
-### Week 1: Infrastructure
-- Create DB schema
-- Build component registry
-- Build dynamic renderer
-- Add safe evaluator
-
-### Week 2-3: Refactor Components
-- Add metadata to all global components
-- Test with hardcoded page trees
-- Verify existing pages still work
-
-### Week 4: Integration
-- Update Dockview to use registry
-- Update routing to use dynamic renderer (optional)
-- Add component sync (Electric SQL)
-
----
-
-## Success Criteria
-
-### Phase 3.4.1 Complete When:
-- ✅ All global components have metadata
-- ✅ Component registry auto-discovers components
-- ✅ Dynamic renderer can render hardcoded page trees
-- ✅ All existing pages work (no regressions)
-- ✅ Safe expression evaluator works for basic cases
-- ✅ DB schema is in place (even if not used yet)
-
----
-
-## Implementation Order (Revised - Iterative Approach)
-
-### Step 1: Component Inventory & Prioritization
-
-#### Existing Components (Already Built)
-| Component | Type | Props | Status | Notes |
-|-----------|------|-------|--------|-------|
-| `HomePage` | component | - | ✅ Exists | Simple, good for testing |
-| `WorkspaceList` | component | - | ✅ Exists | List view |
-| `WorkspaceDetail` | component | `slug` | ✅ Exists | Has props, good test case |
-| `WorkspaceSettings` | component | `slug` | ✅ Exists | Complex form |
-| `DataTableList` | component | `workspaceId` | ✅ Exists | List view |
-| `DataTableSettings` | component | `tableId` | ✅ Exists | Complex form |
-| `CompanySettings` | component | `slug` | ✅ Exists | Settings page |
-
-#### Planned Components (To Build)
-| Component | Type | Props | Priority | Phase |
-|-----------|------|-------|----------|-------|
-| `UserHome` | component | - | 🔴 High | Phase 4 |
-| `TableView` | component | `workspaceId`, `tableId` | 🔴 High | Phase 4 |
-| `TableSettings` | component | `workspaceId`, `tableId` | 🟡 Medium | Phase 4 |
-| `FolderView` | component | `workspaceId`, `folderId` | 🟡 Medium | Phase 5 |
-| `FolderSettings` | component | `workspaceId`, `folderId` | 🟡 Medium | Phase 5 |
-| `ViewDetail` | component | `workspaceId`, `viewId` | 🟢 Low | Phase 5 |
-| `ViewSettings` | component | `workspaceId`, `viewId` | 🟢 Low | Phase 5 |
-| `DashboardView` | component | `workspaceId`, `dashboardId` | 🟢 Low | Phase 6 |
-| `DashboardSettings` | component | `workspaceId`, `dashboardId` | 🟢 Low | Phase 6 |
-| `ChatList` | component | - | 🟢 Low | Future |
-| `ChatDetail` | component | `chatId` | 🟢 Low | Future |
-| `PublicView` | component | `viewId` | 🟢 Low | Future |
-| `PublicDashboard` | component | `dashboardId` | 🟢 Low | Future |
-| `NotFound` | component | - | 🟡 Medium | Now |
-
-#### Container/Provider Components (To Design)
-| Component | Type | Purpose | Priority |
-|-----------|------|---------|----------|
-| `PageContainer` | container | Root page wrapper | 🔴 High |
-| `GridLayout` | container | Grid layout system | 🟡 Medium |
-| `TabContainer` | container | Tab groups | 🟡 Medium |
-| `SplitPanel` | container | Resizable panels | 🟢 Low |
-| `WorkspaceProvider` | provider | Workspace context | 🔴 High |
-| `CompanyProvider` | provider | Company context | 🔴 High |
-| `FormProvider` | provider | Form state | 🟡 Medium |
-| `ThemeProvider` | provider | Theme context | 🟢 Low |
-
----
-
-### Step 2: Build Minimum Test Components (Week 1)
-
-**Goal:** Get dynamic rendering working with simplest possible components.
-
-**Approach:** Use local JSON registry (no database yet!)
-
-**Test Set (3 components):**
-1. **`SimpleCard`** - Basic component
-   - Props: `title`, `content`
-   - No events, no providers
-   - Pure display component
-
-2. **`InteractiveButton`** - Component with events
-   - Props: `label`, `type`
-   - Events: `@click`
-   - Test event handling
-
-3. **`WorkspaceDetail`** - Real existing component
-   - Props: `slug`
-   - Events: `@workspace-loaded`
-   - Providers: `CompanyProvider`
-   - Full integration test
-
-**Deliverables:**
-- [ ] Create TypeScript types (`ComponentMeta`, `PageNode`) ✅
-- [ ] Create `SimpleCard.global.vue` with metadata export
-- [ ] Create `InteractiveButton.global.vue` with metadata export
-- [ ] Add metadata to `WorkspaceDetail.global.vue`
-- [ ] Create local JSON registry (`app/data/component-registry.json`)
-- [ ] Create test page definition (`app/data/test-page.json`)
-- [ ] Basic component registry loader (reads from JSON)
-
----
-
-### Step 3: Build & Test Dynamic Renderer (Week 1-2)
-
-**Goal:** Prove dynamic rendering works with props, events, children.
-
-**Deliverables:**
-- [ ] `DynamicRenderer.vue` component
-- [ ] Hardcoded test page tree (JSON)
-- [ ] Test rendering all 3 test components
-- [ ] Test prop binding
-- [ ] Test event emission
-- [ ] Test nested children
-- [ ] Test provider injection (basic)
-
-**Test Page Structure:**
-```typescript
-const testPage: PageNode = {
-  id: 'root',
-  componentId: 'PageContainer',
-  children: [
-    {
-      id: 'card-1',
-      componentId: 'SimpleCard',
-      props: { title: 'Test', content: 'Hello World' }
-    },
-    {
-      id: 'button-1',
-      componentId: 'InteractiveButton',
-      props: { label: 'Click Me', type: 'primary' },
-      eventHandlers: { click: '{ "log": "Button clicked!" }' }
-    },
-    {
-      id: 'workspace-1',
-      componentId: 'WorkspaceDetail',
-      props: { slug: 'test-workspace' }
-    }
-  ]
-}
-```
-
----
-
-### Step 4: Validate & Move to Database (Week 2-3)
-
-**Goal:** Once schema is validated with JSON, migrate to database.
-
-**Prerequisites:**
-- Dynamic renderer works perfectly with JSON
-- Component metadata schema is stable
-- Page node structure is validated
-- No major design changes needed
-
-**Deliverables:**
-- [ ] Finalize component metadata schema
-- [ ] Create DB migration (`ui_components`, `workspace_pages`)
-- [ ] Create seed script (uses JSON files to populate DB)
-- [ ] API endpoints:
-  - `GET /api/workspaces/:id/pages`
-  - `POST /api/workspaces/:id/pages`
-  - `PUT /api/workspaces/:id/pages/:pageId`
-  - `DELETE /api/workspaces/:id/pages/:pageId`
-- [ ] `usePageDefinition()` composable (loads from DB)
-- [ ] Migrate test page from JSON to DB
-- [ ] Test DB-loaded pages work identically
-
----
-
-### 🎯 **Phase 3.4.4: Page Routing & Production (After DB)**
-
-**Goal:** Full routing integration and production deployment.
-
-### Step 5: Page Routing Integration
-
-**Goal:** Dynamic pages work with URL routing.
-
-**Challenges to Solve:**
-1. **Route matching** - How to match dynamic `urlPattern` to current route?
-2. **Param extraction** - How to pass route params as props?
-3. **Fallback** - Static pages vs dynamic pages priority?
-
-**Proposed Solution:**
-
-```typescript
-// app/pages/workspaces/[slug]/dynamic/[...path].vue
-// Catch-all route for dynamic pages
-
-<script setup lang="ts">
-const route = useRoute()
-const pageLoader = usePageDefinition()
-
-// Find matching page by URL pattern
-const pageDef = await pageLoader.findByUrl(route.fullPath)
-
-// Extract params from URL
-const pageContext = {
-  route: {
-    params: route.params,
-    query: route.query,
-    path: route.path
-  }
-}
-</script>
-
-<template>
-  <DynamicRenderer 
-    v-if="pageDef" 
-    :node="pageDef.rootNode" 
-    :context="pageContext" 
-  />
-  <NotFound v-else />
-</template>
-```
-
-**Alternative:** Keep using `useAppRouter` pattern, add dynamic page lookup.
-
-**Deliverables:**
-- [ ] Design routing strategy
-- [ ] Implement page loader
-- [ ] Test URL → Page mapping
-- [ ] Test param passing
-- [ ] Handle 404s
-
----
-
-### Step 6: Complete Component Library
-
-**Goal:** Build remaining components with metadata.
-
-**Priority Order:**
-1. **Now (Week 4):**
-   - [ ] `NotFound` - Error handling
-   - [ ] `PageContainer` - Layout wrapper
-   - [ ] `UserHome` - User landing page
-
-2. **Phase 4 (Data Tables):**
-   - [ ] `TableView` - Main table viewer
-   - [ ] `TableSettings` - Table configuration
-   - [ ] Add metadata to existing `DataTableList`, `DataTableSettings`
-
-3. **Phase 5 (Views & Folders):**
-   - [ ] `FolderView`, `FolderSettings`
-   - [ ] `ViewDetail`, `ViewSettings`
-   - [ ] `GridLayout` container
-
-4. **Phase 6 (Dashboards):**
-   - [ ] `DashboardView`, `DashboardSettings`
-   - [ ] Dashboard widget containers
-
-5. **Future:**
-   - [ ] Chat components
-   - [ ] Public pages
-   - [ ] Advanced containers
-
----
-
-## Current Status & Next Steps
-
-### ✅ **Phase 3.4.1: Foundation Complete**
-
-**Completed:**
-- [x] TypeScript types (`shared/dynamicComponent/dynamic-page.ts`)
-- [x] Component versioning system (integer + versionName)
-- [x] Migration composable (`useComponentMigration`)
-- [x] Dynamic renderer with edit/view mode toggle
-- [x] Test components (pageContainer, workspaceList, etc.)
-- [x] Component registry structure
-- [x] `useDynamicRender` with undo/redo support
-- [x] `useDynamicRouter` skeleton
-
-### 🔄 **Phase 3.4.2: POC Testing & Validation (Current)**
-
-**Goal:** Validate all core functionality works before committing to DB schema.
-
-#### **Core Functionality Tests**
-
-- [ ] **Event Listener Testing**
-  - [ ] Test `@click`, `@change`, etc. from ComponentNode.eventHandlers
-  - [ ] Test event propagation (child → parent)
-  - [ ] Test custom events
-  - [ ] Verify JSONLogic event handler execution
-
-- [ ] **Router Implementation & Testing**
-  - [ ] Implement `navigate()`, `replace()`, `back()` in `useDynamicRouter`
-  - [ ] Decide: Internal navigation (within dynamic pages) vs external (Nuxt router)
-  - [ ] Parse URL params and query strings
-  - [ ] Sync with browser history
-  - [ ] Test deep linking
-
-- [ ] **Page Navigation System**
-  - [ ] Create catch-all route: `pages/[...all].vue`
-  - [ ] Load different ComponentNode trees based on route
-  - [ ] Handle route changes without full page reload
-  - [ ] Test breadcrumbs/back button
-  - [ ] Handle 404 for unknown pages
-
-- [ ] **Error Boundary Testing**
-  - [ ] Test `NuxtErrorBoundary` in renderer
-  - [ ] Isolate component failures (one fails, others continue)
-  - [ ] Show error UI with component info
-  - [ ] Test recovery (reload component)
-  - [ ] Log errors for debugging
-
-- [ ] **Props & Validation**
-  - [ ] Test static props binding
-  - [ ] Test dynamic props (expressions, context variables)
-  - [ ] Validate props against ComponentSchema
-  - [ ] Test required vs optional props
-  - [ ] Test default values
-
-- [ ] **Slot Rendering**
-  - [ ] Test default slot with children
-  - [ ] Test named slots (actions, header, footer, etc.)
-  - [ ] Test conditional slots (v-if in slot)
-  - [ ] Test empty slots
-  - [ ] Test deeply nested slots (slot in slot)
-
-- [ ] **State Management**
-  - [ ] Test undo/redo with `useRefHistory`
-  - [ ] Test state persistence across mode switches
-  - [ ] Test component state isolation
-  - [ ] Test shared state (context providers)
-
-#### **Edit Mode Features**
-
-- [ ] **Component Drawer/Picker**
-  - [ ] Build component library browser
-  - [ ] Group by category
-  - [ ] Search/filter components
-  - [ ] Show component icon, name, description
-  - [ ] Drag from drawer to canvas
-
-- [ ] **Drag & Drop**
-  - [ ] Drag component from drawer to slot
-  - [ ] Reorder children within slot
-  - [ ] Move component between slots
-  - [ ] Visual drop zones
-  - [ ] Prevent invalid drops (requiredParent)
-
-- [ ] **Component Edit UI**
-  - [ ] Props editor (text, number, boolean, select)
-  - [ ] Slot editor (add/remove children)
-  - [ ] Style editor (custom CSS)
-  - [ ] Event handler editor (basic)
-  - [ ] Component actions (delete, duplicate, copy/paste)
-
-- [ ] **Visual Feedback**
-  - [ ] Highlight selected component
-  - [ ] Show component boundaries in edit mode
-  - [ ] Hover effects
-  - [ ] Visual cues for empty slots
-
-#### **Real Component Integration**
-
-- [ ] **Build Production Components**
-  - [ ] WorkspaceList (with real data)
-  - [ ] WorkspaceDetail (with real data)
-  - [ ] DataTableList
-  - [ ] DataTableViewer
-  - [ ] Form components (input, select, etc.)
-  - [ ] Layout components (grid, flex, tabs)
-
-- [ ] **Component Features**
-  - [ ] Add icons to all components
-  - [ ] Add proper prop schemas
-  - [ ] Add event definitions
-  - [ ] Add slot definitions
-  - [ ] Test with real Electric SQL data
-
-#### **Schema Finalization**
-
-- [ ] **Component Registry**
-  - [ ] Move `componentList` to separate file/folder
-  - [ ] Create component registration helpers
-  - [ ] Add JSON export for seeding
-  - [ ] Create DB seed endpoint (if needed)
-
-- [ ] **Helper Functions**
-  - [ ] `getComponentsByCategory(category: string)`
-  - [ ] `searchComponents(query: string)`
-  - [ ] `validateComponentNode(node: ComponentNode)`
-  - [ ] `createDefaultNode(componentId: string)`
-  - [ ] `cloneComponentNode(node: ComponentNode)`
-  - [ ] `findNodeById(tree: ComponentNode, id: string)`
-  - [ ] `updateNodeInTree(tree: ComponentNode, id: string, updates: Partial<ComponentNode>)`
-
-- [ ] **Migration Testing**
-  - [ ] Create test component with v1 schema
-  - [ ] Add migration v1 → v2
-  - [ ] Test automatic migration on load
-  - [ ] Test migration with nested children
-  - [ ] Test validation after migration
-  - [ ] Test breaking vs non-breaking migrations
-
-#### **Performance & Quality**
-
-- [ ] **Performance Testing**
-  - [ ] Test with 10+ nested levels
-  - [ ] Test with 50+ components in tree
-  - [ ] Test with large props (arrays, objects)
-  - [ ] Measure render time
-  - [ ] Check for memory leaks
-
-- [ ] **Additional Tests**
-  - [ ] Test custom styling (inline styles, classes)
-  - [ ] Test keyboard shortcuts (if implemented)
-  - [ ] Test mobile responsiveness
-  - [ ] Test hot reload (HMR)
-  - [ ] Test with different component versions in same tree
-
-### 🎯 **Phase 3.4.3: Database Migration (After POC Validation)**
-
-**Prerequisites:**
-- All POC tests passing
-- Schema is stable and validated
-- No major design changes anticipated
-
-**Tasks:**
-
-9. ⏸️ **Finalize Schema**
-   - Lock down ComponentSchema structure
-   - Lock down ComponentNode structure
-   - Document all fields and types
-   - Create JSON Schema definitions
-
-10. ⏸️ **Database Schema**
-    - Create `ui_components` table
-    - Create `workspace_pages` table
-    - Create `component_migrations` table (optional)
-    - Add indexes for performance
-    - Add foreign keys and constraints
-
-11. ⏸️ **Migration & Seeding**
-    - Generate Drizzle migration
-    - Create seed script from component registry
-    - Test seeding locally
-    - Test migration rollback
-
-12. ⏸️ **API Endpoints**
-    - `GET /api/components` - List all components
-    - `GET /api/components/:id` - Get component schema
-    - `GET /api/workspaces/:id/pages` - List pages
-    - `GET /api/workspaces/:id/pages/:pageId` - Get page
-    - `POST /api/workspaces/:id/pages` - Create page
-    - `PUT /api/workspaces/:id/pages/:pageId` - Update page
-    - `DELETE /api/workspaces/:id/pages/:pageId` - Delete page
-    - Add validation middleware
-    - Add permission checks
-
-13. ⏸️ **Frontend Integration**
-    - Update component registry to load from API
-    - Update page loader to use API
-    - Add loading states
-    - Add error handling
-    - Cache component schemas
-    - Test with Electric SQL sync (if applicable)
-
-14. ⏸️ **Testing**
-    - Test CRUD operations
-    - Test concurrent edits
-    - Test permissions
-    - Test with multiple workspaces
-    - Load testing
+### Phase 3.4.4: Builder UI (Future)
+
+- [ ] Visual page editor with drag & drop
+- [ ] Component picker/drawer
+- [ ] Props editor panel
+- [ ] App Creator App for marketers/admins
+- [ ] App templates library
+- [ ] Clone/duplicate apps
+- [ ] Custom domain support (requires backend proxy)
+- [ ] AI-assisted building
 
 ---
 
@@ -945,31 +975,121 @@ const pageContext = {
 
 ```
 app/
-├── data/                          # Local data (testing only, before DB)
-│   ├── component-registry.json    # Component metadata
-│   └── test-page.json             # Test page definition
+├── data/
+│   ├── apps/                          # System app definitions (JSON)
+│   │   ├── app-auth.json
+│   │   ├── app-user-home.json
+│   │   ├── app-workspace.json
+│   │   └── app-company.json
+│   └── components/                    # Component schemas (JSON)
+│       └── component-registry.json
 ├── components/
-│   ├── DynamicRenderer.vue        # Core renderer
-│   └── test/                      # Test components
-│       ├── SimpleCard.global.vue
-│       └── InteractiveButton.global.vue
-└── composables/
-    ├── useComponentRegistry.ts    # Component registry (reads from JSON)
-    └── usePageDefinition.ts       # Page loader (reads from JSON, later DB)
+│   ├── app/
+│   │   ├── AppRenderer.vue            # Renders full app (nav + page + content)
+│   │   └── AppLoader.vue              # Loads app by URL
+│   ├── dynamicPage/
+│   │   ├── DynamicRenderer.vue        # Renders component tree
+│   │   └── ...
+│   ├── navLayout/                     # NavLayout components
+│   │   ├── NavSidebar.global.vue
+│   │   ├── NavTopbar.global.vue
+│   │   ├── NavMinimal.global.vue
+│   │   └── NavNone.global.vue
+│   └── pageLayout/                    # PageLayout components
+│       ├── LayoutPage.global.vue
+│       ├── LayoutCentered.global.vue
+│       ├── LayoutGrid.global.vue
+│       └── LayoutFullscreen.global.vue
+├── composables/
+│   ├── useAppRegistry.ts              # App registry (loads from JSON/DB)
+│   ├── useAppRouter.ts                # URL → App → Page matching
+│   ├── useComponentRegistry.ts        # Component schema registry
+│   └── useDynamicRender.ts            # Rendering logic
+└── pages/
+    └── [...all].vue                   # Catch-all route for dynamic apps
 
 shared/
-└── types/
-    └── dynamic-page.ts            # ✅ Already created
+└── dynamicComponent/
+    └── dynamic-page.ts                # All types (App, Page, ComponentNode, etc.)
 
-server/db/schema/                  # ⏸️ NOT YET - wait for validation
-├── ui-components.ts               # (Future)
-└── workspace-pages.ts             # (Future)
+server/db/schema/                      # ⏸️ After POC validation
+├── apps.ts
+└── ui-components.ts
 ```
 
 ---
 
-**Ready to build Step 2?** I'll create:
-1. Test components with metadata exports
-2. Local JSON registry
-3. Component registry loader
-4. Test page definition
+## Current Status
+
+### ✅ Phase 3.4.1: Foundation Complete
+- [x] TypeScript types (`shared/dynamicComponent/dynamic-page.ts`)
+- [x] Component versioning system
+- [x] Migration composable (`useComponentMigration`)
+- [x] Dynamic renderer with edit/view mode
+- [x] Component registry structure
+- [x] `useDynamicRender` with undo/redo
+
+### 🔄 Phase 3.4.2: App System (Current)
+
+**New scope added:**
+- [ ] App type definitions
+- [ ] System apps JSON definitions
+- [ ] NavLayout components
+- [ ] PageLayout components
+- [ ] App router integration
+- [ ] App renderer
+- [ ] Full POC validation
+
+**Existing POC tasks:**
+- [ ] Event listener testing
+- [ ] Router implementation
+- [ ] Error boundary testing
+- [ ] Props & validation
+- [ ] Slot rendering
+- [ ] Edit mode features
+- [ ] Real component integration
+
+### ⏸️ Phase 3.4.3: Database Migration (After POC)
+- Waiting for POC validation
+
+### 🔮 Phase 3.4.4: Builder UI (Future)
+- App Creator App for marketers/super admins
+- Visual page builder
+- App templates & cloning
+- Custom domain support
+- AI-assisted building
+
+---
+
+## Development Strategy
+
+```
+Phase 1 (Now):     JSON files in code → Fast iteration, easy debugging
+Phase 2 (Stable):  Move to DB → Dynamic CRUD, multi-tenant
+Phase 3 (Future):  App Creator App → Non-technical users create apps
+```
+
+---
+
+## Success Criteria
+
+### Phase 3.4.2 Complete When:
+- ✅ All system apps defined in JSON
+- ✅ NavLayout components render correctly
+- ✅ PageLayout components render correctly
+- ✅ App router matches URLs to apps/pages
+- ✅ Full DocPal UI rendered via dynamic system
+- ✅ User apps can be defined (hardcoded for testing)
+- ✅ No regressions in existing functionality
+
+### Phase 3.4.3 Complete When:
+- ✅ Apps stored in database
+- ✅ API endpoints working
+- ✅ User apps CRUD working
+- ✅ Electric SQL sync (if applicable)
+
+### Phase 3.4.4 Complete When:
+- ✅ App Creator App functional
+- ✅ Non-technical users can create apps
+- ✅ App templates available
+- ✅ Custom domains supported
