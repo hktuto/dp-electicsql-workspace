@@ -179,7 +179,7 @@ const closeTimeOut = ref(3000); // time out offset when idle
 const collapseTimeout = ref<NodeJS.Timeout | null>(null);
 function startCollapseTimeout() {
     collapseTimeout.value = setTimeout(() => {
-        if(!detailExpand.value && !dragging.value) {
+        if(!detailExpand.value && !dragging.value && !detailPageOpen.value) {
             floatingState.value = 'collapse';
         }
     }, closeTimeOut.value);
@@ -199,8 +199,18 @@ function handleMouseLeave() {
 // open detail page logic
 const detailPageOpen = ref(false);
 function clickHandler(){
-    detailPageOpen.value = true;
-    popoverDialogRef.value?.open(tabContainerRef.value ?? undefined);
+    console.trace('clickHandler', detailPageOpen.value);
+    if(!detailPageOpen.value){
+        detailPageOpen.value = true;
+        popoverDialogRef.value?.open(tabContainerRef.value ?? undefined);
+    }else{
+        popoverDialogRef.value?.close();
+    }
+}
+
+function handlePopoverClose(){
+    console.log('handlePopoverClose', detailPageOpen.value);
+    detailPageOpen.value = false;
 }
 // end open detail page logic
 
@@ -221,7 +231,7 @@ function clickHandler(){
         >
             <div ref="tabContainerRef" class="tabContainer" @click.stop="clickHandler">
 
-                <Icon  name="mdi:pencil" />
+                <Icon  :name="detailPageOpen ? 'mdi:close' : 'mdi:pencil'" />
                 <template v-if="floatingState === 'expand'">
                     <!-- <Icon  name="mdi:pencil" /> -->
                 </template>
@@ -232,7 +242,7 @@ function clickHandler(){
         </div>
         <CommonPopoverDialog
             ref="popoverDialogRef"
-            @close="detailPageOpen = false"
+            @close="handlePopoverClose"
         >
             <DynamicPageEditorContainer />
         </CommonPopoverDialog>

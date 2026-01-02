@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 
 const context = useDynamicRenderContext()
+const currentTab = ref<string | null>(null)
 
 </script>
 
