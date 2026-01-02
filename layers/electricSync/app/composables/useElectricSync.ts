@@ -350,10 +350,6 @@ export function useElectricSync() {
     return tableUpToDateStatus.value[tableName] ?? false
   }
 
-  // Auto-connect on mount
-  onMounted(() => {
-    connect()
-  })
 
   return {
     status: readonly(status),

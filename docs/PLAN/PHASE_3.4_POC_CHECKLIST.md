@@ -11,12 +11,12 @@
 ### 1. Event Listener System ⚡
 **Priority:** High | **Time:** 2-3 hours
 
-- [ ] Test click events from `eventHandlers`
-- [ ] Test input events (change, input, blur)
-- [ ] Test custom component events
-- [ ] Test event payload structure
-- [ ] Verify JSONLogic execution (basic)
-- [ ] Test event propagation (child → parent)
+- [x] Test click events from `eventHandlers`
+- [x] Test input events (change, input, blur)
+- [x] Test custom component events
+- [x] Test event payload structure
+- [x] Verify JSONLogic execution (basic)
+- [x] Test event propagation (child → parent)
 
 **Acceptance:**
 - All event types trigger correctly
@@ -60,12 +60,12 @@ const query = ref<Record<string, string>>({})
 
 #### **Testing Tasks:**
 
-- [ ] Implement basic navigate() function
+- [x] Implement basic navigate() function
 - [ ] Parse route params from URL
 - [ ] Parse query strings
-- [ ] Test programmatic navigation
-- [ ] Test browser back/forward buttons
-- [ ] Test deep linking
+- [x] Test programmatic navigation
+- [x] Test browser back/forward buttons
+- [x] Test deep linking
 - [ ] Decide on internal vs external routing strategy
 
 **Questions to Answer:**
@@ -111,10 +111,10 @@ if (!pageDef) {
 #### **Testing Tasks:**
 
 - [ ] Create catch-all route `[...all].vue`
-- [ ] Create page loader composable
-- [ ] Test loading different pages by URL
+- [x] Create page loader composable // using nuxt loading indicator
+- [x] Test loading different pages by URL 
 - [ ] Test route change without page reload
-- [ ] Handle 404 for unknown pages
+- [x] Handle 404 for unknown pages // jnuxt global handled
 - [ ] Test with nested routes `/workspace/abc/table/xyz`
 - [ ] Test breadcrumbs
 

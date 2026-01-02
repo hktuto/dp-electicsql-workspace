@@ -379,10 +379,30 @@ onUnmounted(() => {
     targetElement.value.classList.remove('highlight-element')
   }
 })
+/**
+ * Recalculate popover position (call when target element moves)
+ */
+function recalculate() {
+  if (!visible.value || isMobile.value || !targetElement.value || !contentRef.value) return
+  
+  const position = calculatePosition(targetElement.value, contentRef.value)
+  popoverStyle.value = {
+    top: position.top,
+    left: position.left,
+    transformOrigin: position.transformOrigin,
+  }
+  arrowStyle.value = {
+    top: position.arrowTop,
+    left: position.arrowLeft,
+    side: position.arrowSide,
+  }
+}
+
 // Expose methods
 defineExpose({
   open,
   close,
+  recalculate,
   visible: readonly(visible),
 })
 </script>
@@ -452,6 +472,10 @@ defineExpose({
   border: 1px solid var(--app-border-color);
   border-radius: var(--app-border-radius-m);
   box-shadow: var(--app-shadow-l);
+  overflow: auto;
+  resize: both;
+  min-width: 200px;
+  min-height: 100px;
 }
 
 .popover-content {

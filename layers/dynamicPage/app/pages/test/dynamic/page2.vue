@@ -3,6 +3,7 @@ import type { ComponentNode } from '#shared/dynamicComponent/dynamic-page'
 
 const component = ref<ComponentNode>({
     // Component reference
+    
     componentId: "pageContainer",
     componentVersion: 1,  // Using integer version
     
@@ -12,13 +13,19 @@ const component = ref<ComponentNode>({
     // Component to render (denormalized for performance)
     renderComponent: "PageContainer",
     editComponent: "PageContainerEdit",
+
+    eventHandlers: {
+        click: (e: MouseEvent) => {
+                        console.log('click', e)
+                    }
+    },
     
     // Props for pageContainer
     props: {
         menu: [
             {
-                id:"asfasf",
-                label:"asfasf"
+                id:"1234",
+                label:"1245"
             }
         ],
         footer: [],
@@ -39,6 +46,11 @@ const component = ref<ComponentNode>({
                 },
                 slots: {
                     default: [],
+                },
+                eventHandlers: {
+                    click: (e: MouseEvent) => {
+                        console.log('click', e)
+                    }
                 },
             }
         ]

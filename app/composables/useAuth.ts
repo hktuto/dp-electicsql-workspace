@@ -15,9 +15,9 @@ interface LoginCredentials {
 }
 
 // Global state using useState for SSR-safe reactivity
-const useUser = () => useState<User | null>('authUser', () => null)
-const useAuthLoading = () => useState<boolean>('authLoading', () => false)
-const useAuthInitialized = () => useState<boolean>('authInitialized', () => false)
+export const useUser = () => useState<User | null>('authUser', () => null)
+export const useAuthLoading = () => useState<boolean>('authLoading', () => false)
+export const useAuthInitialized = () => useState<boolean>('authInitialized', () => false)
 
 // Track init promise at module level (not in state as it's not serializable)
 let initPromise: Promise<void> | null = null
@@ -37,26 +37,22 @@ export function useAuth() {
     if (isInitialized.value) return
     if (initPromise) return initPromise
 
-    initPromise = (async () => {
-      isLoading.value = true
-      try {
-        // Use $fetch directly here since $api plugin may not be ready yet
-        const { user: currentUser } = await $fetch<{ user: User | null }>('/api/auth/me')
-        user.value = currentUser
-        
-        // If authenticated, sync system tables
-        if (currentUser) {
-          syncSystemTablesForUser()
-        }
-      } catch {
-        user.value = null
-      } finally {
-        isLoading.value = false
-        isInitialized.value = true
+    isLoading.value = true
+    try {
+      // Use $fetch directly here since $api plugin may not be ready yet
+      const { user: currentUser } = await $fetch<{ user: User | null }>('/api/auth/me')
+      user.value = currentUser
+      
+      // If authenticated, sync system tables
+      if (currentUser) {
+        syncSystemTablesForUser()
       }
-    })()
-
-    return initPromise
+    } catch {
+      user.value = null
+    } finally {
+      isLoading.value = false
+      isInitialized.value = true
+    }
   }
 
   /**

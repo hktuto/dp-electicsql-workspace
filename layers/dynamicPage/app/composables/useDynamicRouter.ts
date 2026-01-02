@@ -13,12 +13,14 @@ interface DynamicRouterContext {
 }
 export const DynamicRouterProvider :InjectionKey<DynamicRouterContext> = Symbol('DynamicRouterProvider')
 export const useDynamicRouter = () => {
-
+    const router = useRouter()
     function replace(path: string) {
     }
     function back() {
     }
     function navigate(path: string) {
+        console.log("navigate", path)
+        router.push(path)
     }
     const params = ref<Record<string, string>>({})
     const query = ref<Record<string, string>>({})

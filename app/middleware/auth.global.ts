@@ -33,7 +33,6 @@ function matchRoute(path: string, patterns: string[]): boolean {
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const { start, finish } = useLoadingIndicator()
-  console.log('start loading')
   start({
     force: true,
   })

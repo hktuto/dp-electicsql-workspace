@@ -5,6 +5,10 @@
     }>()
 
     const router = useDynamicRouterContext()
+
+    onMounted(() => {
+        throw new Error('test error')
+    })
 </script>
 
 <template>
