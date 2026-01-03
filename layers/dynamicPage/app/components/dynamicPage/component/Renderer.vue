@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useDynamicRenderContext } from '#layers/dynamicPage/app/composables/useDynamicRender';
 
-import type { ComponentNode } from '~~/shared/dynamicComponent/dynamic-page';
+import type { ComponentNode } from '~~/layers/dynamicPage/app/utils/dynamicAppType';
 const props = defineProps<{
     component: ComponentNode
 }>()

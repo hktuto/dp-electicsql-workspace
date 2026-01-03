@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ComponentNode } from '#shared/dynamicComponent/dynamic-page'
+import type { ComponentNode } from '~~/layers/dynamicPage/app/utils/dynamicAppType'
 
 const component = ref<ComponentNode>({
     // Component reference

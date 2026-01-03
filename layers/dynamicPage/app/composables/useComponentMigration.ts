@@ -5,7 +5,7 @@
  * Uses integer versions for easy comparisons and queries.
  */
 
-import type { ComponentNode, ComponentSchema, ComponentMigration } from '#shared/dynamicComponent/dynamic-page'
+import type { ComponentNode, ComponentSchema, ComponentMigration } from '~~/layers/dynamicPage/app/utils/dynamicAppType'
 
 export function useComponentMigration() {
   /**
@@ -13,7 +13,7 @@ export function useComponentMigration() {
    */
   function getSchema(componentId: string): ComponentSchema | null {
     // TODO: Replace with actual registry lookup
-    const { componentList } = await import('#shared/dynamicComponent/dynamic-page')
+    const { componentList } = await import('~~/layers/dynamicPage/app/utils/dynamicAppType')
     return componentList[componentId] || null
   }
 

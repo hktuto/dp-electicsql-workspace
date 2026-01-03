@@ -18,7 +18,7 @@ export type AppType = 'system' | 'user'
  * System apps: Built-in DocPal apps (auth, user home, workspace, company)
  * User apps: Custom apps created within workspaces (booking, CRM, dashboards)
  */
-export interface App {
+export interface AppSchema {
   id: string
   type: AppType
   workspaceId: string | null    // null for system apps
@@ -27,10 +27,14 @@ export interface App {
   title: string
   description: string
   icon?: string
+  // Metadata
+  meta?: AppMeta
+  status: 'draft' | 'published' | 'archived'
+  version: number
   
   // Routing
-  baseUrl: string               // URL pattern, e.g., "/workspaces/:slug" or "/auth"
-  defaultPageId?: string        // Which page to show at baseUrl root
+  baseUrl: string               // URL pattern, e.g., "/workspaces/:slug" or "/auth" or domain
+  homePage?: string        // Which page to show at baseUrl root
   
   // Shell/Navigation
   navLayout: string             // Component ID for navigation shell
@@ -39,37 +43,14 @@ export interface App {
   // Content
   pages: Page[]
   
-  // Auth
-  isPublic: boolean
-  authRules?: AuthRule[]
-  
   // Storage (Minio)
   bucketPrefix: string          // Folder path for app static assets
-  
-  // Data Access
-  dataScope: DataScope
-  
-  // Metadata
-  meta?: AppMeta
-  status: 'draft' | 'published' | 'archived'
-  version: number
   
   createdAt?: string
   updatedAt?: string
 }
 
-/**
- * DataScope - Defines what data an app can access
- */
-export interface DataScope {
-  type: 'system' | 'workspace'
-  
-  // For system apps: which system entities can be accessed
-  systemAccess?: ('users' | 'workspaces' | 'companies' | 'workflows')[]
-  
-  // For user apps: defaults to full workspace access
-  // Future: could restrict to specific tables, views, etc.
-}
+
 
 /**
  * AppMeta - HTML meta and SEO settings for an app
@@ -100,25 +81,21 @@ export interface AuthRule {
  */
 export interface Page {
   id: string
-  name: string
-  icon?: string
-  slug: string                  // URL segment within app
-  
+  title: string // page title for display
+  slug: string // url friendly name
+  // Page-specific meta
+  meta?: PageMeta
+  routeParams: Record<string, string> // route params needed for the page
   // Layout
-  layout: string                // Component ID for page layout wrapper
+  layout: string                // root component name for the page
+  layoutProps: Record<string, any> // props for the layout
   content: ComponentNode[]      // Components placed inside the layout
-  
-  // Navigation
-  showInNav: boolean
-  navOrder: number
-  parentPageId?: string         // For nested navigation
   
   // Auth (page-level override)
   requiresAuth: boolean
   authRules?: AuthRule[]
   
-  // Page-specific meta
-  meta?: PageMeta
+
 }
 
 /**

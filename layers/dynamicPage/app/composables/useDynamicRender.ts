@@ -1,4 +1,4 @@
-import type { ComponentNode } from '#shared/dynamicComponent/dynamic-page';
+import type { ComponentNode } from '~~/layers/dynamicPage/app/utils/dynamicAppType';
 import { useRefHistory } from '@vueuse/core';
 
 
