@@ -8,6 +8,13 @@
       "when": 1767357690223,
       "tag": "0000_normal_shriek",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767400767766,
+      "tag": "0001_nervous_human_torch",
+      "breakpoints": true
     }
   ]
 }

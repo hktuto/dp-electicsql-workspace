@@ -35,12 +35,6 @@ export default defineNuxtConfig({
       secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
       bucket: process.env.MINIO_BUCKET || 'docpal',
     },
-    
-    // Public config (exposed to client)
-    public: {
-      // Electric URL for direct client connection (development)
-      electricUrl: process.env.ELECTRIC_URL || 'http://localhost:30000',
-    },
   },
   
   // Vite configuration for ElectricSQL/PGlite

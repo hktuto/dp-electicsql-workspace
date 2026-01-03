@@ -224,7 +224,7 @@ export function useElectricSync() {
         // Track which tables are up-to-date (central state)
         const tableStatus = useTableUpToDateStatus()
         tableStatus.value[message.tableName] = true
-        console.log(`[useElectricSync] Table "${message.tableName}" is up-to-date`)
+        // console.log(`[useElectricSync] Table "${message.tableName}" is up-to-date`)
         break
 
       default:

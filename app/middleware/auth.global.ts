@@ -3,22 +3,16 @@
  * Runs on every route change (client-side)
  */
 
-// Public routes that don't require authentication
+// Protected routes that require authentication
 // Supports glob patterns: * matches any characters
-const PUBLIC_ROUTES = [
-  '/auth/*',
-  '/public/*',
-  '/dev/*',  // Dev pages (remove in production)
-]
-
-// Routes that authenticated users shouldn't access (redirect to home)
-const GUEST_ONLY_ROUTES = [
-  '/auth/login',
+const PROTECTED_ROUTES = [
+  '/admin/*',
+  '/system/*',
 ]
 
 /**
  * Convert glob pattern to regex
- * e.g., '/auth/*' → /^\/auth\/.*$/
+ * e.g., '/admin/*' → /^\/admin\/.*$/
  */
 function matchRoute(path: string, patterns: string[]): boolean {
   return patterns.some((pattern) => {
@@ -37,33 +31,26 @@ export default defineNuxtRouteMiddleware(async (to) => {
     force: true,
   })
 
-  const isPublicRoute = matchRoute(to.path, PUBLIC_ROUTES)
-
-  // Skip auth check for public routes
-  if (isPublicRoute) {
+  const isProtectedRoute = matchRoute(to.path, PROTECTED_ROUTES)
+  const { init, isAuthenticated, isInitialized } = useAuth()
+  // Skip auth check for non-protected routes
+  if (!isProtectedRoute) {
+    if (!isInitialized.value) {
+      console.log('initialize auth state')
+      init()
+    }
     console.log('finish loading public route')
     finish()
     return
   }
-
-  const { init, isAuthenticated, isInitialized } = useAuth()
-
+  // following logic MUST need to check auth
   // Initialize auth state if not already done
   if (!isInitialized.value) {
     console.log('initialize auth state')
     await init()
   }
 
-  const isGuestOnlyRoute = matchRoute(to.path, GUEST_ONLY_ROUTES)
-
-  // Redirect authenticated users away from guest-only routes (like login)
-  if (isAuthenticated.value && isGuestOnlyRoute) {
-    console.log('redirect to home')
-    finish()
-    return navigateTo('/')
-  }
-
-  // Redirect unauthenticated users to login
+  // Redirect unauthenticated users to login for protected routes
   if (!isAuthenticated.value) {
     console.log('redirect to login')
     finish()

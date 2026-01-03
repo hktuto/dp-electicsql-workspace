@@ -1,0 +1,21 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#ffffff"/>
+  
+  <!-- Header -->
+  <rect width="400" height="50" fill="#4F46E5"/>
+  <text x="20" y="32" font-family="Arial" font-size="18" fill="#ffffff" font-weight="bold">Default Theme</text>
+  
+  <!-- Sidebar -->
+  <rect x="0" y="50" width="80" height="250" fill="#F3F4F6"/>
+  
+  <!-- Content Area -->
+  <rect x="100" y="70" width="280" height="40" rx="4" fill="#E5E7EB"/>
+  <rect x="100" y="120" width="280" height="60" rx="4" fill="#E5E7EB"/>
+  <rect x="100" y="190" width="180" height="40" rx="4" fill="#4F46E5" opacity="0.8"/>
+  
+  <!-- Accent Elements -->
+  <circle cx="40" cy="80" r="8" fill="#4F46E5"/>
+  <circle cx="40" cy="110" r="8" fill="#9CA3AF"/>
+  <circle cx="40" cy="140" r="8" fill="#9CA3AF"/>
+</svg>

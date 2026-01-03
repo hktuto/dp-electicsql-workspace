@@ -255,7 +255,7 @@
   
       <template v-else-if="company">
         <div class="header">
-          <el-button text @click="router.push('/')">
+          <el-button text >
             <el-icon><ArrowLeft /></el-icon>
             Back
           </el-button>

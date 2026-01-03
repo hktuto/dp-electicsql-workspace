@@ -9,12 +9,11 @@
  *   If not provided, uses targetElement for highlighting.
  */
 import { onClickOutside, useEventListener } from '@vueuse/core'
-import type { Component } from 'vue'
 
 interface Props {
   title?: string
   width?: string | number
-  placement?: 'top' | 'top-start' | 'top-end' | 'bottom' | 'bottom-start' | 'bottom-end' | 'left' | 'left-start' | 'left-end' | 'right' | 'right-start' | 'right-end'
+  placement?: 'top' | 'top-start' | 'top-center' | 'top-end' | 'bottom' | 'bottom-start' | 'bottom-center' | 'bottom-end' | 'left' | 'left-start' | 'left-center' | 'left-end' | 'right' | 'right-start' | 'right-center' | 'right-end'
   offset?: number
   closeOnClickModal?: boolean
   closeOnClickOutside?: boolean // If false, clicking outside won't close popover
@@ -31,7 +30,7 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   placement: 'bottom-start',
-  offset: 8,
+  offset: 12,
   width: '400px',
   closeOnClickModal: true,
   closeOnClickOutside: true,
@@ -131,27 +130,75 @@ function handleResize(e: MouseEvent) {
   
   const deltaX = e.clientX - resizeStart.value.x
   const deltaY = e.clientY - resizeStart.value.y
-  const minWidth = 200
-  const minHeight = 100
+  const arrowSize = 8
+  const baseMinWidth = 200
+  const baseMinHeight = 100
+  
+  const targetRect = targetElement.value.getBoundingClientRect()
+  const side = arrowStyle.value.side
   
   let newWidth = resizeStart.value.width
   let newHeight = resizeStart.value.height
   let newTop = resizeStart.value.top
   let newLeft = resizeStart.value.left
   
+  // Calculate initial new dimensions
   switch (resizeDirection.value) {
     case 'right':
-      newWidth = Math.max(minWidth, resizeStart.value.width + deltaX)
+      newWidth = Math.max(baseMinWidth, resizeStart.value.width + deltaX)
       break
     case 'left':
-      newWidth = Math.max(minWidth, resizeStart.value.width - deltaX)
+      newWidth = Math.max(baseMinWidth, resizeStart.value.width - deltaX)
       newLeft = resizeStart.value.left + (resizeStart.value.width - newWidth)
       break
     case 'bottom':
-      newHeight = Math.max(minHeight, resizeStart.value.height + deltaY)
+      newHeight = Math.max(baseMinHeight, resizeStart.value.height + deltaY)
       break
     case 'top':
-      newHeight = Math.max(minHeight, resizeStart.value.height - deltaY)
+      newHeight = Math.max(baseMinHeight, resizeStart.value.height - deltaY)
+      newTop = resizeStart.value.top + (resizeStart.value.height - newHeight)
+      break
+  }
+  
+  // Calculate dynamic minimum size based on target position relative to NEW popover position
+  // This ensures arrow can always point to target center
+  let minWidth = baseMinWidth
+  let minHeight = baseMinHeight
+  
+  if (side === 'top' || side === 'bottom') {
+    // For horizontal arrows, ensure popover is wide enough for arrow to reach target center
+    const targetCenter = targetRect.left + targetRect.width / 2
+    // Arrow position needs to be: targetCenter - newLeft - arrowSize
+    // Arrow must be at least arrowSize from left edge, and at least arrowSize*2 from right edge
+    // So: arrowSize <= (targetCenter - newLeft - arrowSize) <= (newWidth - arrowSize * 2)
+    // This gives: newWidth >= targetCenter - newLeft + arrowSize
+    const requiredWidth = targetCenter - newLeft + arrowSize
+    minWidth = Math.max(baseMinWidth, requiredWidth)
+  } else {
+    // For vertical arrows, ensure popover is tall enough for arrow to reach target center
+    const targetCenter = targetRect.top + targetRect.height / 2
+    // Arrow position needs to be: targetCenter - newTop - arrowSize
+    // Arrow must be at least arrowSize from top edge, and at least arrowSize*2 from bottom edge
+    // So: arrowSize <= (targetCenter - newTop - arrowSize) <= (newHeight - arrowSize * 2)
+    // This gives: newHeight >= targetCenter - newTop + arrowSize
+    const requiredHeight = targetCenter - newTop + arrowSize
+    minHeight = Math.max(baseMinHeight, requiredHeight)
+  }
+  
+  // Apply dynamic minimum constraints
+  switch (resizeDirection.value) {
+    case 'right':
+      newWidth = Math.max(minWidth, newWidth)
+      break
+    case 'left':
+      newWidth = Math.max(minWidth, newWidth)
+      newLeft = resizeStart.value.left + (resizeStart.value.width - newWidth)
+      break
+    case 'bottom':
+      newHeight = Math.max(minHeight, newHeight)
+      break
+    case 'top':
+      newHeight = Math.max(minHeight, newHeight)
       newTop = resizeStart.value.top + (resizeStart.value.height - newHeight)
       break
   }
@@ -164,14 +211,13 @@ function handleResize(e: MouseEvent) {
   }
   
   // Recalculate arrow position to stay pointed at target
-  const targetRect = targetElement.value.getBoundingClientRect()
-  const arrowSize = 8
-  const side = arrowStyle.value.side
-  
   if (side === 'top' || side === 'bottom') {
     // Arrow positioned horizontally (center of target)
     const targetCenter = targetRect.left + targetRect.width / 2
-    const arrowLeft = Math.max(arrowSize, Math.min(newWidth - arrowSize * 2, targetCenter - newLeft - arrowSize))
+    // Ensure arrow stays within bounds: at least arrowSize from left, and at least arrowSize*2 from right
+    const maxArrowLeft = newWidth - arrowSize * 2
+    const desiredArrowLeft = targetCenter - newLeft - arrowSize
+    const arrowLeft = Math.max(arrowSize, Math.min(maxArrowLeft, desiredArrowLeft))
     arrowStyle.value = {
       ...arrowStyle.value,
       left: `${arrowLeft}px`,
@@ -180,7 +226,10 @@ function handleResize(e: MouseEvent) {
   } else {
     // Arrow positioned vertically (center of target)
     const targetCenter = targetRect.top + targetRect.height / 2
-    const arrowTop = Math.max(arrowSize, Math.min(newHeight - arrowSize * 2, targetCenter - newTop - arrowSize))
+    // Ensure arrow stays within bounds: at least arrowSize from top, and at least arrowSize*2 from bottom
+    const maxArrowTop = newHeight - arrowSize * 2
+    const desiredArrowTop = targetCenter - newTop - arrowSize
+    const arrowTop = Math.max(arrowSize, Math.min(maxArrowTop, desiredArrowTop))
     arrowStyle.value = {
       ...arrowStyle.value,
       top: `${arrowTop}px`,
@@ -267,6 +316,7 @@ function findBestPlacement(
 function calculatePosition(target: HTMLElement, content: HTMLElement) {
   const targetRect = target.getBoundingClientRect()
   const contentRect = content.getBoundingClientRect()
+  console.log('calculatePosition', contentRect)
   const viewport = {
     width: window.innerWidth,
     height: window.innerHeight,
@@ -427,7 +477,10 @@ async function open(target?: HTMLElement, highlight?: HTMLElement) {
     left: position.arrowLeft,
     side: position.arrowSide,
   }
-  
+  // the contentRef just render, so we need to recalculate the position after the content is rendered
+  setTimeout(() => {
+    recalculate()
+  }, 100)
   emit('opened')
 }
 

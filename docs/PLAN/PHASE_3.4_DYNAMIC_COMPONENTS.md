@@ -827,11 +827,33 @@ User visits URL
 - [x] Build file browser UI (grid and list views)
 - [x] Implement file upload with drag & drop
 - [x] Add file preview and management (delete, copy URL)
-- [x] Integrate with `useDynamicRenderContext` bucket root
+- [x] Integrate with `useAppsContext` bucket root
 - [x] Support for seeded system files
 - [x] Fix filename header encoding issues
 - [x] Add context menu for quick actions
 - [x] Create comprehensive documentation
+
+#### Step 1.6: App Designer UI ✅
+- [x] Create editor container with sidebar navigation
+- [x] Build General settings section for AppNode
+  - [x] Basic info (title, description, icon, status)
+  - [x] Configuration (type, theme, navLayout)
+  - [x] Routing (baseUrl, homePage dropdown)
+  - [x] Advanced settings (workspaceId, version, bucket, metadata)
+- [x] Build Pages editor section
+  - [x] Card-based page list UI
+  - [x] Self-contained page card component
+  - [x] Add/delete/duplicate pages
+  - [x] Navigate to page from card
+  - [x] Expandable edit form per page
+  - [x] Home page badge indicator
+  - [x] Current page highlighting
+- [x] Implement Files section (already completed in Step 1.5)
+- [x] Add history management system
+  - [x] Undo/redo using `useRefHistory`
+  - [x] Smart save state tracking (snapshot comparison)
+  - [x] Bottom floating status bar with history controls
+  - [x] Save to API functionality
 
 #### Step 2: Create System Apps JSON
 - [ ] Create `app/data/apps/` folder
@@ -999,6 +1021,16 @@ app/
 │   ├── app/
 │   │   ├── AppRenderer.vue            # Renders full app (nav + page + content)
 │   │   └── AppLoader.vue              # Loads app by URL
+│   ├── designer/                      # ✅ App Designer/Editor
+│   │   ├── editorContainer.vue        # Main editor with sidebar + history bar
+│   │   ├── floatingButton.vue         # Edit mode toggle button
+│   │   └── section/                   # Editor sections
+│   │       ├── general.vue            # General app settings
+│   │       ├── pages/
+│   │       │   ├── pages.vue          # Pages list
+│   │       │   └── card.vue           # Individual page card
+│   │       ├── components.vue         # Component tree editor (TODO)
+│   │       └── files.vue              # File manager
 │   ├── dynamicPage/
 │   │   ├── DynamicRenderer.vue        # Renders component tree
 │   │   └── ...
@@ -1013,16 +1045,17 @@ app/
 │       ├── LayoutGrid.global.vue
 │       └── LayoutFullscreen.global.vue
 ├── composables/
-│   ├── useAppRegistry.ts              # App registry (loads from JSON/DB)
+│   ├── useApps.ts                     # ✅ App context with history & save
 │   ├── useAppRouter.ts                # URL → App → Page matching
+│   ├── useFileManager.ts              # ✅ File operations
 │   ├── useComponentRegistry.ts        # Component schema registry
 │   └── useDynamicRender.ts            # Rendering logic
+├── utils/
+│   ├── type/
+│   │   └── apps.ts                    # ✅ All types (App, Page, ComponentNode, etc.)
+│   └── appsSettings.ts                # ✅ Theme and layout options
 └── pages/
     └── [...all].vue                   # Catch-all route for dynamic apps
-
-shared/
-└── dynamicComponent/
-    └── dynamic-page.ts                # All types (App, Page, ComponentNode, etc.)
 
 server/db/schema/                      # ⏸️ After POC validation
 ├── apps.ts
@@ -1044,8 +1077,16 @@ server/db/schema/                      # ⏸️ After POC validation
 
 ### 🔄 Phase 3.4.2: App System (Current)
 
-**New scope added:**
-- [ ] App type definitions
+**App Designer & Management:**
+- [x] App type definitions
+- [x] App editor UI with sections (General, Pages, Components, Files)
+- [x] General settings editor for AppNode
+- [x] Pages management with card-based UI
+- [x] File manager integration
+- [x] History/undo/redo system
+- [x] Save state management
+
+**Still TODO:**
 - [ ] System apps JSON definitions
 - [ ] NavLayout components
 - [ ] PageLayout components

@@ -1,0 +1,24 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#ffffff"/>
+  <rect width="400" height="300" stroke="#E5E7EB" stroke-width="2"/>
+  
+  <!-- Header -->
+  <rect width="400" height="40" fill="#F3F4F6"/>
+  <text x="120" y="26" font-family="Arial" font-size="14" fill="#374151" font-weight="bold">Header</text>
+  
+  <!-- Sidebar -->
+  <rect y="40" width="100" height="260" fill="#F9FAFB"/>
+  <rect x="15" y="55" width="70" height="25" rx="4" fill="#4F46E5" opacity="0.6"/>
+  <rect x="15" y="90" width="70" height="25" rx="4" fill="#E5E7EB"/>
+  <rect x="15" y="125" width="70" height="25" rx="4" fill="#E5E7EB"/>
+  <rect x="15" y="160" width="70" height="25" rx="4" fill="#E5E7EB"/>
+  
+  <!-- Content Area -->
+  <rect x="120" y="60" width="260" height="220" rx="4" fill="#FAFAFA"/>
+  <rect x="140" y="80" width="220" height="30" rx="4" fill="#E5E7EB"/>
+  <rect x="140" y="120" width="220" height="60" rx="4" fill="#E5E7EB"/>
+  <rect x="140" y="190" width="150" height="30" rx="4" fill="#4F46E5" opacity="0.6"/>
+  
+  <text x="200" y="270" font-family="Arial" font-size="12" fill="#6B7280" text-anchor="middle">Sidebar Layout</text>
+</svg>
